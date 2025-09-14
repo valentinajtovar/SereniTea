@@ -1,17 +1,23 @@
-// src/lib/firebase.ts
+// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore"; // Si usas Firestore
-import { getAuth } from "firebase/auth"; // Si usas autenticación
+// import { getAnalytics } from "firebase/analytics"; // Solo frontend
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
-  apiKey: "YOUR_WEB_API_KEY", // Find this in your Firebase Console under Project settings > Your apps
+  apiKey: "AIzaSyCTCOoz7Nw0cEf90l2j0TGgylSNh1XqmX8",
   authDomain: "serenitea-4fb65.firebaseapp.com",
   projectId: "serenitea-4fb65",
-  storageBucket: "serenitea-4fb65.appspot.com", // Often projectId.appspot.com or projectId.firebasestorage.app
+  storageBucket: "serenitea-4fb65.firebasestorage.app",
   messagingSenderId: "410656855839",
-  appId: "YOUR_WEB_APP_ID" // Find this in your Firebase Console under Project settings > Your apps
+  appId: "1:410656855839:web:e98481c60b4c85ca1fc22a",
+  measurementId: "G-5X1TTN43EY"
 };
 
+// Initialize Firebase
+import { getFirestore } from "firebase/firestore";
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
-export const auth = getAuth(app);
+// const analytics = getAnalytics(app); // Solo frontend
