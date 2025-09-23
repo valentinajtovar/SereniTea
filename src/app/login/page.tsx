@@ -9,7 +9,7 @@ import * as z from 'zod';
 import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
-import { auth, db } from '@/lib/firebase-client'; // Use client-side db
+import { auth, db } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -24,128 +24,65 @@ import { useToast } from '@/hooks/use-toast';
 import { Icons } from '@/components/icons';
 
 const formSchema = z.object({
-  email: z.string().email({
-    message: "Por favor, introduce una dirección de correo válida.",
-  }),
-  password: z.string().min(6, {
-    message: "La contraseña debe tener al menos 6 caracteres.",
-  }),
+  email: z.string().email({ message: "Por favor, introduce una dirección de correo válida." }),
+  password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
 });
 
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoginLoading, setIsLoginLoading] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    setIsLoading(true);
+    setIsLoginLoading(true);
+    console.log("Attempting to sign in with email:", values.email);
+
     try {
-      const userCredential = await signInWithEmailAndPassword(
-        auth,
-        values.email,
-        values.password
-      );
-      
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
-      
-      // Correct: Verify if the user is in the 'paciente' collection
+      console.log("Firebase Auth successful for:", user.email);
+
       const pacienteRef = collection(db, 'paciente');
-      const q = query(pacienteRef, where("email", "==", user.email));
+      const q = query(pacienteRef, where("correo", "==", user.email));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
-        // Not a patient, sign out and show error
+        console.log("Patient not found in Firestore. Access denied. Signing out.");
         await signOut(auth);
         toast({
           title: "Acceso denegado",
-          description: "No tienes permiso para acceder a esta área. Solo los pacientes pueden iniciar sesión aquí.",
+          description: "No tienes permiso para acceder. Solo los pacientes registrados pueden entrar.",
           variant: "destructive",
         });
       } else {
-        // Is a patient, proceed to dashboard. Session is kept.
-        console.log("Inicio de sesión de paciente exitoso:", user.email);
+        const patientDoc = querySnapshot.docs[0];
+        const patientId = patientDoc.id;
+
+        console.log(`Patient found! ID: ${patientId}. Storing in session and redirecting...`);
+
+        localStorage.setItem('patientId', patientId);
+
         toast({
           title: "¡Bienvenido/a de nuevo!",
-          description: "Has iniciado sesión correctamente como paciente.",
+          description: "Has iniciado sesión correctamente.",
         });
-        router.push('/dashboard'); // Redirection to dashboard
-      }
 
+        router.push('/dashboard');
+      }
     } catch (error: any) {
-      console.error("Error en el inicio de sesión:", error);
-      let title = "Error en el inicio de sesión";
-      let description = "Ocurrió un error inesperado. Por favor, inténtalo de nuevo.";
-
-      switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-          title = "Credenciales incorrectas";
-          description = "El correo o la contraseña no son correctos. Por favor, verifica tus datos.";
-          break;
-        case 'auth/invalid-email':
-          title = "Correo inválido";
-          description = "El formato del correo electrónico no es válido.";
-          break;
+      console.error("Login error:", error);
+      let description = "Ocurrió un error inesperado.";
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+        description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
       }
-
-      toast({
-        title: title,
-        description: description,
-        variant: "destructive",
-      });
+      toast({ title: "Error en el inicio de sesión", description, variant: "destructive" });
     } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function showPatients() {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/get-patients');
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-      const patientEmails = await response.json();
-      
-      toast({
-        title: `Pacientes Registrados (${patientEmails.length})`,
-        description: (
-          <div className="mt-4 h-48 overflow-y-auto rounded-md border bg-secondary p-3">
-            {patientEmails.length > 0 ? (
-              <ul className="space-y-2">
-                {patientEmails.map((email: string, index: number) => (
-                  <li key={index} className="text-sm text-secondary-foreground">
-                    {email}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">
-                No hay pacientes registrados.
-              </p>
-            )}
-          </div>
-        ),
-        duration: 10000,
-      });
-
-    } catch (error: any) {
-      console.error("Error fetching patients: ", error);
-      toast({
-        title: "Error al obtener pacientes",
-        description: "No se pudieron cargar los datos de los pacientes. Revisa la consola para más detalles.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      setIsLoginLoading(false);
     }
   }
 
@@ -159,51 +96,15 @@ export default function LoginPage() {
         <div className="grid gap-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Correo Electrónico</FormLabel>
-                    <FormControl>
-                      <Input placeholder="nombre@ejemplo.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contraseña</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading && (
-                  <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                Iniciar Sesión
+              <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input placeholder="nombre@ejemplo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <Button type="submit" className="w-full" disabled={isLoginLoading}>
+                {isLoginLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />} Iniciar Sesión
               </Button>
             </form>
           </Form>
-          <Button variant="outline" onClick={showPatients} className="w-full mt-4" disabled={isLoading}>
-             {isLoading ? <Icons.spinner className="mr-2 h-4 w-4 animate-spin" /> : "Mostrar Pacientes (Dev)"}
-          </Button>
           <p className="px-8 text-center text-sm text-muted-foreground">
-            ¿No tienes una cuenta?{' '}
-            <Link
-              href="/register"
-              className="underline underline-offset-4 hover:text-primary"
-            >
-              Regístrate
-            </Link>
+            ¿No tienes una cuenta? <Link href="/register" className="underline underline-offset-4 hover:text-primary">Regístrate</Link>
           </p>
         </div>
       </div>

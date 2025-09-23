@@ -3,13 +3,13 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCTCOoz7Nw0cEf90l2j0TGgylSNh1XqmX8",
-    authDomain: "serenitea-4fb65.firebaseapp.com",
-    projectId: "serenitea-4fb65",
-    storageBucket: "serenitea-4fb65.firebasestorage.app",
-    messagingSenderId: "410656855839",
-    appId: "1:410656855839:web:e98481c60b4c85ca1fc22a",
-    measurementId: "G-5X1TTN43EY"
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
   };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
