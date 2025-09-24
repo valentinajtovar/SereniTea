@@ -1,0 +1,58 @@
+
+[
+  {
+    "userId": "5buqezRKQDeTkXl1IMPvEQRrJCJz2",
+    "mainEmotion": "Alegria",
+    "subEmotion": "Feliz",
+    "journal": "Hoy fue un día increíble. Recibí una buena noticia en el trabajo y me sentí muy valorado. Después, salí a caminar por el parque y el clima estaba perfecto. Pequeños momentos que suman mucho.",
+    "emotionEmoji": "😊",
+    "createdAt": {
+      "_seconds": 1721865600,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "userId": "5buqezRKQDeTkXl1IMPvEQRrJCJz2",
+    "mainEmotion": "Tristeza",
+    "subEmotion": "Melancólico",
+    "journal": "Me desperté sintiéndome un poco bajo de ánimos. Extraño a mi familia. A veces la distancia se siente más que otros días. Escuché música nostálgica, lo que probablemente no ayudó, pero era lo que me apetecía.",
+    "emotionEmoji": "😢",
+    "createdAt": {
+      "_seconds": 1721779200,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "userId": "5buqezRKQDeTkXl1IMPvEQRrJCJz2",
+    "mainEmotion": "Calma",
+    "subEmotion": "Relajado",
+    "journal": "Hoy me dediqué el día a mí. Medité por la mañana, leí un libro que tenía pendiente y me preparé una taza de té sin prisas. Necesitaba un día así para recargar energías. Me siento en paz.",
+    "emotionEmoji": "😌",
+    "createdAt": {
+      "_seconds": 1721692800,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "userId": "5buqezRKQDeTkXl1IMPvEQRrJCJz2",
+    "mainEmotion": "Enojo",
+    "subEmotion": "Frustrado",
+    "journal": "Tuve una discusión por un malentendido. Me sentí frustrado porque no lograba comunicar mi punto de vista. Aunque ya pasó, todavía siento un poco de tensión. Mañana intentaré hablarlo de nuevo con más calma.",
+    "emotionEmoji": "😠",
+    "createdAt": {
+      "_seconds": 1721606400,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "userId": "5buqezRKQDeTkXl1IMPvEQRrJCJz2",
+    "mainEmotion": "Sorpresa",
+    "subEmotion": "Asombrado",
+    "journal": "Me encontré con un viejo amigo por la calle. ¡Hacía años que no nos veíamos! Fue una sorpresa increíble y nos pusimos al día. Me ha alegrado el día por completo, qué pequeño es el mundo.",
+    "emotionEmoji": "😮",
+    "createdAt": {
+      "_seconds": 1721520000,
+      "_nanoseconds": 0
+    }
+  }
+]
