@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { collection, addDoc } from 'firebase/firestore';
+import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
 import { auth, db } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,21 @@ const formSchema = z.object({
   name: z.string().min(3, { message: "Por favor, introduce tu nombre completo." }),
   email: z.string().email({ message: "Por favor, introduce una dirección de correo válida." }),
   password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
+  birthdate: z.string()
+    .refine((val) => val && !isNaN(Date.parse(val)), {
+      message: 'Por favor, introduce una fecha de nacimiento válida.',
+    })
+    .refine((val) => {
+      const birthDate = new Date(val);
+      const today = new Date();
+      let age = today.getFullYear() - birthDate.getFullYear();
+      const m = today.getMonth() - birthDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+      }
+      return age >= 18;
+    }, { message: 'Debes ser mayor de 18 años para registrarte.' }),
+  anonymousName: z.string().min(3, { message: 'El nombre de usuario anónimo debe tener al menos 3 caracteres.' }),
 });
 
 export default function RegisterPage() {
@@ -37,37 +52,30 @@ export default function RegisterPage() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: "", email: "", password: "" },
+    defaultValues: { name: "", email: "", password: "", birthdate: "", anonymousName: "" },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsRegisterLoading(true);
-    console.log("Attempting to register with email:", values.email);
 
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
-      console.log("Firebase Auth successful for:", user.email);
 
-      // Update user profile with name
-      if (user) {
-        await updateProfile(user, { displayName: values.name });
-        console.log(`User profile updated with displayName: ${values.name}`);
-      }
+      await updateProfile(user, { displayName: values.name });
 
-      // Add patient to Firestore
-      const pacienteRef = collection(db, 'paciente');
-      const docRef = await addDoc(pacienteRef, {
-        nombre: values.name,
+      const patientDocRef = doc(db, 'paciente', user.uid);
+
+      await setDoc(patientDocRef, {
+        nombre_completo: values.name,
         correo: values.email,
-        // Add any other patient data you need
+        nacimiento: Timestamp.fromDate(new Date(values.birthdate)),
+        usuario_anonimo: values.anonymousName,
       });
-      console.log("Patient added to Firestore with ID:", docRef.id);
-
 
       toast({
         title: "¡Registro exitoso!",
-        description: "Tu cuenta ha sido creada.",
+        description: "Tu cuenta ha sido creada y tu perfil guardado.",
       });
 
       router.push('/login');
@@ -96,6 +104,8 @@ export default function RegisterPage() {
               <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre Completo</FormLabel><FormControl><Input placeholder="Tu nombre" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>Correo Electrónico</FormLabel><FormControl><Input placeholder="nombre@ejemplo.com" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Contraseña</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="birthdate" render={({ field }) => (<FormItem><FormLabel>Fecha de Nacimiento</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="anonymousName" render={({ field }) => (<FormItem><FormLabel>Nombre de Usuario Anónimo</FormLabel><FormControl><Input placeholder="ej. lago_azul" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <Button type="submit" className="w-full" disabled={isRegisterLoading}>
                 {isRegisterLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />} Registrarse
               </Button>

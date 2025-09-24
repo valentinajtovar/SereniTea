@@ -7,8 +7,8 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Rules for 'pacientes' collection
-    match /pacientes/{pacienteId} {
+    // Rules for 'paciente' collection
+    match /paciente/{pacienteId} {
       // Allow read access if the user is the owner of the document.
       allow get: if isSignedIn() && request.auth.uid == pacienteId;
 
@@ -28,8 +28,8 @@ service cloud.firestore {
       // A user can create an entry if they are logged in and the entry is for themselves
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       
-      // A user can read, update, and delete their own entries
-      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // A user can read, list, update, and delete their own entries
+      allow read, list, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Rules for 'tareas' collection
@@ -37,8 +37,8 @@ service cloud.firestore {
         // A user can create a task for themselves
         allow create: if isSignedIn() && request.resource.data.pacienteId == request.auth.uid;
 
-        // A user can read, update, or delete their own tasks
-        allow read, update, delete: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
+        // A user can read, list, update, or delete their own tasks
+        allow read, list, update, delete: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
     }
     
      match /psychologists/{psychologistId} {
