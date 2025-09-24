@@ -129,6 +129,7 @@ export default function PatientDashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
+            {/* --- COLUMNA IZQUIERDA (PRINCIPAL) --- */}
             <div className="lg:col-span-2 space-y-8">
               <div className="p-8 bg-white rounded-2xl shadow-lg">
                 <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>
@@ -137,6 +138,7 @@ export default function PatientDashboard() {
                 {showFullForm ? (
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                      {/* ... (campos del formulario) ... */}
                       <FormField control={form.control} name="mainEmotion" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-lg font-semibold text-gray-700">Elige tu emoción principal</FormLabel>
@@ -184,13 +186,19 @@ export default function PatientDashboard() {
                   </div>
                 )}
               </div>
+
+              {/* --- ENTRADAS RECIENTES MOVIDAS AQUÍ --- */}
+              <JournalEntries user={currentUser} />
+
             </div>
 
+            {/* --- COLUMNA DERECHA (LATERAL) --- */}
             <div className="space-y-8">
               <QuickTip />
               <Tasks />
-              <JournalEntries user={currentUser} />
+              {/* El componente MoodTracker (los cuadrados de colores) se mantiene aquí */}
             </div>
+
           </div>
         </div>
       </main>

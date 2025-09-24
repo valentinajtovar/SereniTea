@@ -59,8 +59,10 @@ const JournalEntries = ({ user }: { user: User | null }) => {
 
   return (
     <>
+      {/* El mood tracker se queda en la barra lateral, solo movemos las entradas */}
       <MoodTracker entries={entries} />
 
+      {/* Este es el componente que moveremos */}
       <Card className="shadow-lg bg-white/80 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="font-headline text-2xl text-gray-700">Tus Entradas Recientes</CardTitle>
@@ -74,7 +76,8 @@ const JournalEntries = ({ user }: { user: User | null }) => {
                         <p className="text-sm font-semibold text-gray-800">
                             {entry.emotionEmoji} {entry.mainEmotion}
                         </p>
-                        <p className="text-gray-700 text-lg leading-relaxed break-words">
+                        {/* --- ESTILO MODIFICADO AQUÍ --- */}
+                        <p className="text-sm text-gray-600 break-words mt-1">
                             {entry.journal}
                         </p>
                     </div>
