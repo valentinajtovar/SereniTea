@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { auth, db } from '@/lib/firebase-client';
+import { db } from '@/lib/firebase-client';
 
 interface JournalEntry {
   id: string;
@@ -13,44 +14,47 @@ interface JournalEntry {
   createdAt: Timestamp;
 }
 
-// Función para formatear la fecha de manera relativa
 const formatDate = (timestamp: Timestamp) => {
   const date = timestamp.toDate();
   const now = new Date();
-  const diffTime = Math.abs(now.getTime() - date.getTime());
+  date.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  const diffTime = now.getTime() - date.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 1) return "Hoy";
-  if (diffDays === 2) return "Ayer";
-  return `Hace ${diffDays - 1} días`;
+  if (diffDays === 0) return "Hoy";
+  if (diffDays === 1) return "Ayer";
+  return `Hace ${diffDays} días`;
 };
 
-const JournalEntries = () => {
+const JournalEntries = ({ user }: { user: User | null }) => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      if (user) {
-        const q = query(
-          collection(db, 'journal_entries'), 
-          where('userId', '==', user.uid), 
-          orderBy('createdAt', 'desc')
-        );
+    if (user) {
+      // The final, correct query with the orderBy clause re-enabled.
+      const q = query(
+        collection(db, 'journal_entries'), 
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc') // <-- Re-enabled!
+      );
 
-        const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
-          const entriesData: JournalEntry[] = [];
-          querySnapshot.forEach((doc) => {
-            entriesData.push({ id: doc.id, ...doc.data() } as JournalEntry);
-          });
-          setEntries(entriesData);
+      const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
+        const entriesData: JournalEntry[] = [];
+        querySnapshot.forEach((doc) => {
+          entriesData.push({ id: doc.id, ...doc.data() } as JournalEntry);
         });
+        setEntries(entriesData);
+      }, (error) => {
+          // This error should not happen now, but we keep it for safety.
+          console.error("Error loading journal entries: ", error);
+      });
 
-        return () => unsubscribeSnapshot();
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
+      return () => unsubscribeSnapshot();
+    } else {
+      setEntries([]);
+    }
+  }, [user]);
 
   return (
     <Card className="shadow-lg bg-white/80 backdrop-blur-sm">
