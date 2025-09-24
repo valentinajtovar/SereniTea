@@ -1,31 +1,11 @@
 'use server';
 
 import { NextResponse } from 'next/server';
-// FIX: Replaced alias with relative path to solve module resolution issue
-import { admin } from '../../../lib/firebase-admin'; 
+import { admin } from '@/lib/firebase-admin';
 import { JournalEntry, Task } from '@/types';
+import { suggestCreativeActivities } from '@/ai/flows/suggest-creative-activities';
 
 const db = admin.firestore();
-
-// Placeholder for the actual call to the generative AI model
-async function generateTasksFromAI(prompt: string): Promise<string[]> {
-  console.log("----- PROMPT PARA IA -----");
-  console.log(prompt);
-  console.log("---------------------------");
-
-  // Here you would call the API of a model like Gemini, GPT, etc.
-  // Example: const response = await generativeModel.generateContent(prompt);
-  // const tasksText = await response.text();
-  // const tasksArray = tasksText.split('\n').filter(t => t.trim() !== '');
-  
-  // For now, we return example tasks to simulate the response.
-  await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate network latency
-  return [
-    "Escribir sobre un momento en el que te sentiste agradecido hoy.",
-    "Realizar 10 minutos de meditación guiada usando una app.",
-    "Salir a caminar por 15 minutos y prestar atención a los sonidos a tu alrededor."
-  ];
-}
 
 export async function POST(req: Request) {
   try {
@@ -35,15 +15,12 @@ export async function POST(req: Request) {
       return new NextResponse(JSON.stringify({ error: 'No se proporcionó el ID del usuario.' }), { status: 400 });
     }
 
-    // 1. Get journal entries and existing tasks to give context to the AI
     const journalEntriesSnap = await db.collection('journal_entries').where('userId', '==', userId).orderBy('createdAt', 'desc').limit(10).get();
     const journalEntries = journalEntriesSnap.docs.map(doc => doc.data() as JournalEntry);
     
-    // Existing tasks are already passed from the client
     const completedTasks = existingTasks.filter((t: Task) => t.estado === 'completada' && t.feedback);
     const pendingTasks = existingTasks.filter((t: Task) => t.estado === 'pendiente');
 
-    // 2. Build the prompt for the AI
     let prompt = `Eres un asistente de psicólogo especializado en terapia cognitivo-conductual. Tu objetivo es generar 3 nuevas tareas para un paciente basadas en su historial. Sé empático, positivo y enfócate en tareas pequeñas y manejables. No repitas tareas que ya están en la lista de pendientes.\n\nContexto del paciente:\n`;
 
     if (journalEntries.length > 0) {
@@ -67,12 +44,19 @@ export async function POST(req: Request) {
         });
     }
 
-    prompt += `\nGenera 3 nuevas tareas concisas y accionables en una lista separada por saltos de línea.`;
+    prompt += `\nGenera 3 nuevas tareas concisas y accionables en formato de array de strings JSON.`;
 
-    // 3. Call the AI (using the placeholder)
-    const newTasksDescriptions = await generateTasksFromAI(prompt);
+    // Llamada corregida al flow de IA
+    const suggestions = await suggestCreativeActivities({ mood: prompt, location: 'user profile' });
 
-    // 4. Save the new tasks in Firestore
+    // Acceso correcto a la propiedad de la respuesta
+    const newTasksDescriptions = suggestions.activitySuggestions;
+
+    if (!Array.isArray(newTasksDescriptions) || newTasksDescriptions.length === 0) {
+      console.error("La IA no devolvió un array de tareas válido. Respuesta recibida:", suggestions);
+      throw new Error('La IA no devolvió tareas válidas.');
+    }
+
     const batch = db.batch();
     const now = new Date();
     const tomorrow = new Date(now);
