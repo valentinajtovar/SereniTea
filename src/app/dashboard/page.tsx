@@ -22,9 +22,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase-client';
 import Tasks from '@/components/dashboard/tasks';
-import JournalEntries from '@/components/dashboard/journal-entries'; // Correctly imported
+import JournalEntries from '@/components/dashboard/journal-entries';
+import MainHeader from '@/components/dashboard/main-header';
+import QuickTip from '@/components/dashboard/quick-tip';
 
-// --- Emotion Stickers Data ---
 const emotions = {
   Alegria: { emoji: '😊', subEmotions: ['Feliz', 'Emocionado', 'Orgulloso', 'Optimista'] },
   Calma: { emoji: '😌', subEmotions: ['Relajado', 'Tranquilo', 'En Paz', 'Satisfecho'] },
@@ -34,14 +35,12 @@ const emotions = {
 };
 type Emotion = keyof typeof emotions;
 
-// --- Form Schema ---
 const dailyEntrySchema = z.object({
   mainEmotion: z.string().min(1, 'Debes elegir una emoción principal.'),
   subEmotion: z.string().min(1, 'Debes elegir una emoción específica.'),
   journal: z.string().min(10, { message: 'Tu entrada debe tener al menos 10 caracteres.' }),
 });
 
-// --- Helper to get today's date string ---
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 export default function PatientDashboard() {
@@ -115,72 +114,86 @@ export default function PatientDashboard() {
     </div>
   );
 
+  const greetingName = currentUser?.displayName || 'de nuevo';
+
   return (
-    <div className="min-h-screen bg-lilac p-4 sm:p-6 md:p-8">
-      <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-2 space-y-8">
-          <div className="p-8 bg-white rounded-2xl shadow-lg">
-            <h1 className="font-headline text-4xl text-gray-800 mb-2">Registro Diario</h1>
-            <p className="text-gray-600 mb-6">Tómate un momento para conectar contigo. ¿Cómo te sientes hoy?</p>
-
-            {showFullForm ? (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  <FormField control={form.control} name="mainEmotion" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-lg font-semibold text-gray-700">Elige tu emoción principal</FormLabel>
-                        <FormControl>
-                          <div className="flex flex-wrap justify-center pt-4">
-                            {Object.keys(emotions).map((key) => (
-                              <EmotionSticker key={key} emoji={emotions[key as Emotion].emoji} name={key} isSelected={field.value === key} onClick={() => { field.onChange(key); form.setValue('subEmotion', ''); }} />
-                            ))}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-
-                  {selectedMainEmotion && (
-                    <FormField control={form.control} name="subEmotion" render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-lg font-semibold text-gray-700">¿Puedes ser más específico?</FormLabel>
-                          <FormControl>
-                            <div className="flex flex-wrap gap-2 pt-2">
-                              {emotions[selectedMainEmotion].subEmotions.map((sub) => (<Button key={sub} type="button" variant={field.value === sub ? 'default' : 'outline'} onClick={() => field.onChange(sub)} className="rounded-full">{sub}</Button>))}
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )} />
-                  )}
-
-                  <FormField control={form.control} name="journal" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-lg font-semibold text-gray-700">Tu Diario</FormLabel>
-                        <FormControl><Textarea placeholder="Escribe sobre tu día..." className="resize-none h-48 p-4 font-cursive text-xl bg-amber-50 leading-relaxed" {...field} /></FormControl>
-                        <FormDescription>Este es tu espacio seguro.</FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
-                  <Button type="submit" size="lg" className="w-full font-bold text-lg" disabled={isAuthLoading}>{isAuthLoading ? 'Verificando...' : 'Guardar Mi Día'}</Button>
-                </form>
-              </Form>
-            ) : (
-              <div className="text-center p-8 border-2 border-dashed border-purple-200 rounded-xl">
-                <h2 className="font-headline text-2xl text-purple-700">¡Gracias por tu registro de hoy!</h2>
-                <p className="text-gray-600 mt-2 mb-6">¡Has hecho una pausa para tu bienestar!</p>
-                <Button onClick={handleAddNewEntry}><PlusCircle className="mr-2 h-4 w-4" /> Añadir otra entrada</Button>
-              </div>
-            )}
+    <div className="min-h-screen bg-gray-50">
+      <MainHeader />
+      <main className="p-4 sm:p-6 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">Bienvenido, {greetingName}</h1>
+            <p className="text-gray-600">¿Listo para continuar tu viaje? Estamos aquí contigo.</p>
           </div>
 
-          {/* The key change: Passing the user to the child component */}
-          <JournalEntries user={currentUser} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <div className="lg:col-span-2 space-y-8">
+              <div className="p-8 bg-white rounded-2xl shadow-lg">
+                <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>
+                <p className="text-gray-600 mb-6">Tómate un momento para conectar contigo. ¿Cómo te sientes hoy?</p>
 
+                {showFullForm ? (
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                      <FormField control={form.control} name="mainEmotion" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-lg font-semibold text-gray-700">Elige tu emoción principal</FormLabel>
+                            <FormControl>
+                              <div className="flex flex-wrap justify-center pt-4">
+                                {Object.keys(emotions).map((key) => (
+                                  <EmotionSticker key={key} emoji={emotions[key as Emotion].emoji} name={key} isSelected={field.value === key} onClick={() => { field.onChange(key); form.setValue('subEmotion', ''); }} />
+                                ))}
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+
+                      {selectedMainEmotion && (
+                        <FormField control={form.control} name="subEmotion" render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="text-lg font-semibold text-gray-700">¿Puedes ser más específico?</FormLabel>
+                              <FormControl>
+                                <div className="flex flex-wrap gap-2 pt-2">
+                                  {emotions[selectedMainEmotion].subEmotions.map((sub) => (<Button key={sub} type="button" variant={field.value === sub ? 'default' : 'outline'} onClick={() => field.onChange(sub)} className="rounded-full">{sub}</Button>))}
+                                </div>
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )} />
+                      )}
+
+                      <FormField control={form.control} name="journal" render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-lg font-semibold text-gray-700">Tu Diario</FormLabel>
+                            <FormControl><Textarea placeholder="Escribe sobre tu día..." className="resize-none h-48 p-4 text-xl bg-amber-50 leading-relaxed" {...field} /></FormControl>
+                            <FormDescription>Este es tu espacio seguro.</FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )} />
+                      <Button type="submit" size="lg" className="w-full font-bold text-lg" disabled={isAuthLoading}>{isAuthLoading ? 'Verificando...' : 'Guardar Mi Día'}</Button>
+                    </form>
+                  </Form>
+                ) : (
+                  <div className="text-center p-8 border-2 border-dashed border-purple-200 rounded-xl">
+                    <h2 className="font-headline text-2xl text-purple-700">¡Gracias por tu registro de hoy!</h2>
+                    <p className="text-gray-600 mt-2 mb-6">¡Has hecho una pausa para tu bienestar!</p>
+                    <Button onClick={handleAddNewEntry}><PlusCircle className="mr-2 h-4 w-4" /> Añadir otra entrada</Button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-8">
+              <QuickTip />
+              <Tasks />
+              <JournalEntries user={currentUser} />
+            </div>
+          </div>
         </div>
-
-        <div className="space-y-8"><Tasks /></div>
-      </div>
+      </main>
     </div>
   );
 }

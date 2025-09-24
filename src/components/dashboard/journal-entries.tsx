@@ -5,9 +5,8 @@ import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'fireba
 import { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from '@/lib/firebase-client';
-import MoodTracker from './mood-tracker'; // Import the new component
+import MoodTracker from './mood-tracker';
 
-// 1. Export the JournalEntry interface
 export interface JournalEntry {
   id: string;
   emotionEmoji: string;
@@ -16,7 +15,6 @@ export interface JournalEntry {
   createdAt: Timestamp;
 }
 
-// 2. Updated date formatting function
 const formatDetailedDate = (timestamp: Timestamp) => {
   const date = timestamp.toDate();
   const now = new Date();
@@ -60,9 +58,7 @@ const JournalEntries = ({ user }: { user: User | null }) => {
   }, [user]);
 
   return (
-    // We wrap the two components in a single fragment
     <>
-      {/* 3. Pass the entries to the new MoodTracker component */}
       <MoodTracker entries={entries} />
 
       <Card className="shadow-lg bg-white/80 backdrop-blur-sm">
@@ -74,15 +70,14 @@ const JournalEntries = ({ user }: { user: User | null }) => {
             entries.map(entry => (
               <div key={entry.id} className="border-b border-purple-100 pb-3 last:border-b-0">
                 <div className="flex justify-between items-start">
-                    <div>
+                    <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-800">
                             {entry.emotionEmoji} {entry.mainEmotion}
                         </p>
-                        <p className="text-gray-700 font-cursive text-lg leading-relaxed truncate">
+                        <p className="text-gray-700 text-lg leading-relaxed break-words">
                             {entry.journal}
                         </p>
                     </div>
-                    {/* 4. Use the new detailed date format */}
                     <p className="text-xs text-gray-500 text-right flex-shrink-0 ml-4">{formatDetailedDate(entry.createdAt)}</p>
                 </div>
               </div>
