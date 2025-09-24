@@ -12,8 +12,9 @@ service cloud.firestore {
       // Allow read access if the user is the owner of the document.
       allow get: if isSignedIn() && request.auth.uid == pacienteId;
 
-      // Allow a user to create a document for themselves.
-      allow create: if isSignedIn() && request.auth.uid == pacienteId;
+      // Allow a user to create their own document during sign-up.
+      // The UID of the creating user must match the document ID.
+      allow create: if request.auth.uid == pacienteId;
 
       // Allow a user to update or delete their own document.
       allow update, delete: if isSignedIn() && request.auth.uid == pacienteId;
@@ -48,10 +49,13 @@ service cloud.firestore {
       
       // A psychologist can update their own profile.
       allow update: if isSignedIn() && request.auth.uid == psychologistId;
+
+      // Any signed-in user can see the list of psychologists.
+      allow list: if isSignedIn();
       
       // Creation happens via a secure server-side action, not directly by clients.
-      // Listing and deletion are disallowed for security.
-      allow list, create, delete: if false;
+      // Deletion is disallowed for security.
+      allow create, delete: if false;
     }
   }
 }
