@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase-client';
 import { useToast } from '@/hooks/use-toast';
+import { type JournalEntry } from '@/types'; // Importación centralizada
 
 import {
   AlertDialog,
@@ -37,14 +38,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Textarea } from '@/components/ui/textarea';
-
-export interface JournalEntry {
-  id: string;
-  emotionEmoji: string;
-  mainEmotion: string;
-  journal: string;
-  createdAt: Timestamp;
-}
 
 const formatDetailedDate = (timestamp: Timestamp) => {
   const date = timestamp.toDate();
