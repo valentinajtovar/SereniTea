@@ -16,20 +16,20 @@ service cloud.firestore {
 
     // Rules for 'journal_entries' collection
     match /journal_entries/{entryId} {
-      // A user can create a journal entry if they are logged in and the entry is for themselves
+      // A user can create an entry if they are logged in and the entry is for themselves
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       
-      // A user can read, update, and delete their own journal entries
+      // A user can read, update, and delete their own entries
       allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
     }
 
-    // Rules for 'assigned_tasks' collection
-    match /assigned_tasks/{taskId} {
-      // Psychologists can create, read, update, delete tasks.
-      // Patients can only read or update (e.g., mark as complete) tasks assigned to them.
-      allow read, update: if request.auth != null && resource.data.userId == request.auth.uid;
-      // Allow full access for psychologists (example role check, needs implementation)
-      // allow write: if request.auth.token.role == 'psychologist';
+    // Rules for 'tareas' collection
+    match /tareas/{tareaId} {
+      // A user can read or update a task if they are logged in and the task's pacienteId matches their own UID.
+      allow read, update: if request.auth != null && resource.data.pacienteId == request.auth.uid;
+
+      // Allow creation of tasks by any authenticated user (e.g., from the app) or by the IA (Cloud Function)
+      allow create: if request.auth != null;
     }
 
     // Rules for stories (example from documentation)

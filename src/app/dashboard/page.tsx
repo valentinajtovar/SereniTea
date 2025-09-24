@@ -218,7 +218,7 @@ export default function PatientDashboard() {
               {/* --- CALENDARIO RESTAURADO AQUÍ --- */}
               <MoodTracker entries={journalEntries} />
               <QuickTip />
-              <Tasks />
+              <Tasks user={currentUser} />
             </div>
 
           </div>
