@@ -3,40 +3,51 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check user roles
-    function isOneOfRoles(rsc, array) {
-      return rsc.data.roles[request.auth.token.email] in array;
+    function isSignedIn() {
+      return request.auth != null;
     }
 
     // Rules for 'paciente' collection
     match /paciente/{pacienteId} {
-      // Allow read/write access only to the authenticated user who owns the document
-      allow read, write: if request.auth != null && request.auth.uid == pacienteId;
+      // Allow read access if the document's email matches the user's token email.
+      // This allows the login query to securely check if a patient document exists.
+      allow read: if isSignedIn() && resource.data.correo == request.auth.token.email;
+
+      // Allow a user to create a document if the new document contains their email.
+      allow create: if isSignedIn() && request.resource.data.correo == request.auth.token.email;
+
+      // Allow a user to update or delete their own document.
+      allow update, delete: if isSignedIn() && resource.data.correo == request.auth.token.email;
     }
 
     // Rules for 'journal_entries' collection
     match /journal_entries/{entryId} {
       // A user can create an entry if they are logged in and the entry is for themselves
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       
       // A user can read, update, and delete their own entries
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
     }
 
     // Rules for 'tareas' collection
     match /tareas/{tareaId} {
-      // A user can read or update a task if they are logged in and the task's pacienteId matches their own UID.
-      allow read, update: if request.auth != null && resource.data.pacienteId == request.auth.uid;
+      // A user can read or update a task if its pacienteId matches their own UID.
+      allow read, update: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
 
-      // Allow creation of tasks by any authenticated user (e.g., from the app) or by the IA (Cloud Function)
-      allow create: if request.auth != null;
+      // Allow creation of tasks by any authenticated user (e.g., a psychologist or the app itself)
+      allow create: if isSignedIn();
     }
-
-    // Rules for stories (example from documentation)
-    match /stories/{story} {
-      allow create: if request.auth != null;
-      allow read, delete: if request.auth != null && resource.data.author == request.auth.uid;
-      allow update: if request.auth != null && resource.data.author == request.auth.uid;
+     match /psychologists/{psychologistId} {
+      // Public profiles of approved psychologists can be read by anyone.
+      // A psychologist can always read their own profile.
+      allow get: if (resource.data.approved == true) || (isSignedIn() && request.auth.uid == psychologistId);
+      
+      // A psychologist can update their own profile.
+      allow update: if isSignedIn() && request.auth.uid == psychologistId;
+      
+      // Creation happens via a secure server-side action, not directly by clients.
+      // Listing and deletion are disallowed for security.
+      allow list, create, delete: if false;
     }
   }
 }
