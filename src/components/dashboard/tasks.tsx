@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useFormStatus } from 'react-dom';
 import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { CheckSquare, Square, Pencil, MessageSquare, Loader2, ThumbsUp, ThumbsDown, Meh, Sparkles } from 'lucide-react';
+import { CheckSquare, Square, Pencil, MessageSquare, Loader2, ThumbsUp, ThumbsDown, Meh, Sparkles, Trash2 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { deleteTaskAction } from '@/app/actions';
 import { type Task, type TaskFeedback, type Utilidad, type Dificultad } from '@/types';
 
 const FeedbackForm = ({ task, initialFeedback, onSubmit, onCancel }: { task: Task; initialFeedback?: TaskFeedback | null; onSubmit: (feedback: TaskFeedback) => void; onCancel: () => void; }) => {
@@ -80,6 +82,26 @@ const DisplayFeedback = ({ feedback }: { feedback: TaskFeedback }) => (
         {typeof feedback.repetiria === 'boolean' && <p><strong>Repetiría:</strong> <span className="font-normal">{feedback.repetiria ? 'Sí' : 'No'}</span></p>}
     </div>
 );
+
+const DeleteTaskButton = () => {
+    const { pending } = useFormStatus();
+    return (
+        <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 flex-shrink-0"
+            disabled={pending}
+            aria-label="Delete task"
+        >
+            {pending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+                <Trash2 className="h-4 w-4 text-gray-500 group-hover:text-red-500 transition-colors" />
+            )}
+        </Button>
+    );
+};
 
 const Tasks = ({ user }: { user: User | null }) => {
   const { toast } = useToast();
@@ -195,7 +217,7 @@ const Tasks = ({ user }: { user: User | null }) => {
               const isAiTask = task.asignadaPor === 'IA Serenitea';
               return (
                 <div key={task.id} className={`p-3 rounded-lg shadow-sm transition-all ${isAiTask ? 'bg-purple-50 border-l-4 border-purple-400' : 'bg-white'}`}>
-                    <div className="flex items-start gap-3">
+                    <div className="flex items-start gap-3 group">
                       <button onClick={() => handleToggleTask(task)} className="mt-1 flex-shrink-0">
                           {task.estado === 'completada' ? <CheckSquare className="h-6 w-6 text-green-500" /> : <Square className="h-6 w-6 text-gray-400" />}
                       </button>
@@ -208,6 +230,9 @@ const Tasks = ({ user }: { user: User | null }) => {
                             }
                           </div>
                       </div>
+                      <form action={deleteTaskAction.bind(null, task.id)}>
+                        <DeleteTaskButton />
+                      </form>
                     </div>
                     
                     <div className="pl-9 mt-2">
