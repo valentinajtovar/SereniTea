@@ -6,10 +6,9 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth'; // Importar updateProfile
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
-import { auth, db } from '@/lib/firebase-client';
+import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -40,49 +39,25 @@ export default function LoginPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoginLoading(true);
-    console.log("Attempting to sign in with email:", values.email);
-
+    
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-      console.log("Firebase Auth successful for:", user.email);
+      // Paso 1: Simplemente inicia sesión.
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      
+      // Paso 2: Muestra un mensaje de éxito genérico.
+      // El AuthProvider y el UserProvider se encargarán de cargar los datos en la siguiente página.
+      toast({
+        title: "¡Bienvenido/a de nuevo!",
+        description: "Has iniciado sesión correctamente.",
+      });
 
-      const pacienteRef = collection(db, 'paciente');
-      const q = query(pacienteRef, where("correo", "==", user.email));
-      const querySnapshot = await getDocs(q);
+      // Paso 3: Redirige al dashboard.
+      router.push('/dashboard');
 
-      if (querySnapshot.empty) {
-        console.log("Patient not found in Firestore. Access denied. Signing out.");
-        await signOut(auth);
-        toast({
-          title: "Acceso denegado",
-          description: "No tienes permiso para acceder. Solo los pacientes registrados pueden entrar.",
-          variant: "destructive",
-        });
-      } else {
-        const patientDoc = querySnapshot.docs[0].data(); // Obtener los datos del paciente
-        const patientName = patientDoc.nombre; // Asumiendo que el campo se llama 'nombre'
-
-        // --- ACTUALIZACIÓN DEL PERFIL ---
-        if (patientName && user) {
-            await updateProfile(user, { displayName: patientName });
-            console.log(`User profile updated with displayName: ${patientName}`);
-        }
-        // --------------------------------
-        
-        const patientId = querySnapshot.docs[0].id;
-        localStorage.setItem('patientId', patientId);
-
-        toast({
-          title: `¡Bienvenido/a de nuevo, ${patientName || ''}!`, // Saludo personalizado
-          description: "Has iniciado sesión correctamente.",
-        });
-
-        router.push('/dashboard');
-      }
     } catch (error: any) {
       console.error("Login error:", error);
       let description = "Ocurrió un error inesperado.";
+      // Maneja errores de autenticación específicos para dar mejor feedback al usuario
       if (error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
         description = "Las credenciales son incorrectas. Por favor, verifica tu correo y contraseña.";
       }

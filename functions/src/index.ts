@@ -22,8 +22,7 @@ export const generateTasks = functions.https.onCall(async (data, context) => {
 
     try {
         // 1. Obtener las últimas 3 entradas del diario del usuario
-        const journalSnapshot = await db.collection("journal_entries")
-            .where("userId", "==", userId)
+        const journalSnapshot = await db.collection(`paciente/${userId}/diario`)
             .orderBy("createdAt", "desc")
             .limit(3)
             .get();
