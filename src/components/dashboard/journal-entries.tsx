@@ -5,8 +5,10 @@ import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'fireba
 import { User } from 'firebase/auth';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { db } from '@/lib/firebase-client';
+import MoodTracker from './mood-tracker'; // Import the new component
 
-interface JournalEntry {
+// 1. Export the JournalEntry interface
+export interface JournalEntry {
   id: string;
   emotionEmoji: string;
   mainEmotion: string;
@@ -14,29 +16,33 @@ interface JournalEntry {
   createdAt: Timestamp;
 }
 
-const formatDate = (timestamp: Timestamp) => {
+// 2. Updated date formatting function
+const formatDetailedDate = (timestamp: Timestamp) => {
   const date = timestamp.toDate();
   const now = new Date();
-  date.setHours(0, 0, 0, 0);
-  now.setHours(0, 0, 0, 0);
-  const diffTime = now.getTime() - date.getTime();
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  const timeString = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === 1) return "Ayer";
-  return `Hace ${diffDays} días`;
+  if (date >= today) {
+    return `Hoy a las ${timeString}`;
+  } else if (date >= yesterday) {
+    return `Ayer a las ${timeString}`;
+  } else {
+    return `${date.toLocaleDateString('es-ES')} a las ${timeString}`;
+  }
 };
+
 
 const JournalEntries = ({ user }: { user: User | null }) => {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
 
   useEffect(() => {
     if (user) {
-      // The final, correct query with the orderBy clause re-enabled.
       const q = query(
         collection(db, 'journal_entries'), 
         where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc') // <-- Re-enabled!
+        orderBy('createdAt', 'desc')
       );
 
       const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
@@ -45,9 +51,6 @@ const JournalEntries = ({ user }: { user: User | null }) => {
           entriesData.push({ id: doc.id, ...doc.data() } as JournalEntry);
         });
         setEntries(entriesData);
-      }, (error) => {
-          // This error should not happen now, but we keep it for safety.
-          console.error("Error loading journal entries: ", error);
       });
 
       return () => unsubscribeSnapshot();
@@ -57,28 +60,39 @@ const JournalEntries = ({ user }: { user: User | null }) => {
   }, [user]);
 
   return (
-    <Card className="shadow-lg bg-white/80 backdrop-blur-sm">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl text-gray-700">Tus Entradas Recientes</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {entries.length > 0 ? (
-          entries.map(entry => (
-            <div key={entry.id} className="border-b border-purple-100 pb-3 last:border-b-0">
-              <p className="text-sm font-semibold text-gray-800">
-                {entry.emotionEmoji} {entry.mainEmotion}
-              </p>
-              <p className="text-xs text-gray-500 mb-1">{formatDate(entry.createdAt)}</p>
-              <p className="text-gray-700 font-cursive text-lg leading-relaxed truncate">
-                {entry.journal}
-              </p>
-            </div>
-          ))
-        ) : (
-          <p className="text-gray-500 italic">Aún no tienes entradas en tu diario.</p>
-        )}
-      </CardContent>
-    </Card>
+    // We wrap the two components in a single fragment
+    <>
+      {/* 3. Pass the entries to the new MoodTracker component */}
+      <MoodTracker entries={entries} />
+
+      <Card className="shadow-lg bg-white/80 backdrop-blur-sm">
+        <CardHeader>
+          <CardTitle className="font-headline text-2xl text-gray-700">Tus Entradas Recientes</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {entries.length > 0 ? (
+            entries.map(entry => (
+              <div key={entry.id} className="border-b border-purple-100 pb-3 last:border-b-0">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <p className="text-sm font-semibold text-gray-800">
+                            {entry.emotionEmoji} {entry.mainEmotion}
+                        </p>
+                        <p className="text-gray-700 font-cursive text-lg leading-relaxed truncate">
+                            {entry.journal}
+                        </p>
+                    </div>
+                    {/* 4. Use the new detailed date format */}
+                    <p className="text-xs text-gray-500 text-right flex-shrink-0 ml-4">{formatDetailedDate(entry.createdAt)}</p>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500 italic">Aún no tienes entradas en tu diario.</p>
+          )}
+        </CardContent>
+      </Card>
+    </>
   );
 };
 
