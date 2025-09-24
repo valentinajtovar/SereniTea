@@ -22,6 +22,7 @@ export interface Task {
   fechaAsignacion: Timestamp;
   fechaDue: Timestamp;
   feedback?: TaskFeedback;
+  aiFeedback?: 'liked' | 'disliked' | null; // <-- Added this line
 }
 
 // --- Tipos para Diario ---

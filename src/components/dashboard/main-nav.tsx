@@ -25,10 +25,10 @@ export function MainNav() {
         Panel Principal
       </Link>
       <Link
-        href="/dashboard/journal"
+        href="/dashboard/diario"
         className={cn(
           'text-sm font-medium transition-colors hover:text-primary',
-          pathname === '/dashboard/journal' ? 'text-foreground' : 'text-foreground/60'
+          pathname === '/dashboard/diario' ? 'text-foreground' : 'text-foreground/60'
         )}
       >
         Diario

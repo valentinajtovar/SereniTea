@@ -7,17 +7,20 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Rules for 'paciente' collection
-    match /paciente/{pacienteId} {
-      // Allow read access if the document's email matches the user's token email.
-      // This allows the login query to securely check if a patient document exists.
-      allow read: if isSignedIn() && resource.data.correo == request.auth.token.email;
+    // Rules for 'pacientes' collection
+    match /pacientes/{pacienteId} {
+      // Allow read access if the user is the owner of the document.
+      allow get: if isSignedIn() && request.auth.uid == pacienteId;
 
-      // Allow a user to create a document if the new document contains their email.
-      allow create: if isSignedIn() && request.resource.data.correo == request.auth.token.email;
+      // Allow a user to create a document for themselves.
+      allow create: if isSignedIn() && request.auth.uid == pacienteId;
 
       // Allow a user to update or delete their own document.
-      allow update, delete: if isSignedIn() && resource.data.correo == request.auth.token.email;
+      allow update, delete: if isSignedIn() && request.auth.uid == pacienteId;
+      
+      // Logged-in users can list patients, but with restrictions.
+      // This is a placeholder; refine it based on who should see what.
+      allow list: if isSignedIn();
     }
 
     // Rules for 'journal_entries' collection

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy, Timestamp, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { CheckSquare, Square, Pencil, MessageSquare, Loader2, ThumbsUp, ThumbsDown, Meh } from 'lucide-react';
+import { CheckSquare, Square, Pencil, MessageSquare, Loader2, ThumbsUp, ThumbsDown, Meh, Sparkles } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,10 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { type Task, type TaskFeedback, type Utilidad, type Dificultad } from '@/types'; // Importación centralizada
-
-
-// --- Helper Components --- //
+import { type Task, type TaskFeedback, type Utilidad, type Dificultad } from '@/types';
 
 const FeedbackForm = ({ task, initialFeedback, onSubmit, onCancel }: { task: Task; initialFeedback?: TaskFeedback | null; onSubmit: (feedback: TaskFeedback) => void; onCancel: () => void; }) => {
   const [utilidad, setUtilidad] = useState<Utilidad | undefined>(initialFeedback?.utilidad);
@@ -84,15 +81,18 @@ const DisplayFeedback = ({ feedback }: { feedback: TaskFeedback }) => (
     </div>
 );
 
-// --- Main Component --- //
 const Tasks = ({ user }: { user: User | null }) => {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [feedbackTaskId, setFeedbackTaskId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) { setIsLoading(false); return; }
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     const q = query(collection(db, "tareas"), where("pacienteId", "==", user.uid), orderBy("fechaDue", "asc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -100,8 +100,8 @@ const Tasks = ({ user }: { user: User | null }) => {
       setTasks(tasksData);
       setIsLoading(false);
     }, (error) => {
-      console.error("Error al obtener las tareas: ", error);
-      toast({ title: "Error", description: "No se pudieron cargar las tareas.", variant: "destructive" });
+      console.error("Error fetching tasks: ", error);
+      toast({ title: "Error", description: "Could not load tasks.", variant: "destructive" });
       setIsLoading(false);
     });
     return () => unsubscribe();
@@ -112,7 +112,7 @@ const Tasks = ({ user }: { user: User | null }) => {
     const taskRef = doc(db, 'tareas', task.id);
     try {
       await updateDoc(taskRef, { estado: newStatus });
-      toast({ title: `Tarea ${newStatus === 'completada' ? 'completada' : 'marcada como pendiente'}` });
+      toast({ title: `Task ${newStatus === 'completada' ? 'completed' : 'marked as pending'}` });
       if (newStatus === 'completada' && !task.feedback) {
         setFeedbackTaskId(task.id);
       }
@@ -120,8 +120,8 @@ const Tasks = ({ user }: { user: User | null }) => {
         setFeedbackTaskId(null);
       }
     } catch (error) {
-      console.error("Error al actualizar la tarea: ", error);
-      toast({ title: "Error", description: "No se pudo actualizar la tarea.", variant: "destructive" });
+      console.error("Error updating task: ", error);
+      toast({ title: "Error", description: "Could not update task.", variant: "destructive" });
     }
   };
 
@@ -129,69 +129,124 @@ const Tasks = ({ user }: { user: User | null }) => {
     const taskRef = doc(db, 'tareas', taskId);
     try {
         await updateDoc(taskRef, { feedback });
-        toast({ title: "¡Gracias!", description: "Tu feedback ha sido guardado." });
+        toast({ title: "Thank you!", description: "Your feedback has been saved." });
         setFeedbackTaskId(null);
     } catch (error) {
-        console.error("Error al guardar el feedback: ", error);
-        toast({ title: "Error", description: "No se pudo guardar tu feedback.", variant: "destructive" });
+        console.error("Error saving feedback: ", error);
+        toast({ title: "Error", description: "Could not save your feedback.", variant: "destructive" });
     }
-  }
+  };
+
+  const handleAiTaskFeedback = async (taskId: string, feedback: 'liked' | 'disliked') => {
+    const taskRef = doc(db, 'tareas', taskId);
+    try {
+      await updateDoc(taskRef, { aiFeedback: feedback });
+      toast({ title: "Feedback saved", description: "Thanks, I'll learn from your preferences." });
+    } catch (error) {
+      console.error("Error saving AI feedback: ", error);
+      toast({ title: "Error", description: "Could not save your feedback.", variant: "destructive" });
+    }
+  };
+
+  const handleGenerateTasks = async () => {
+    if (!user) return;
+    setIsGenerating(true);
+    toast({ title: "Generating tasks...", description: "The AI is creating new tasks for you." });
+    try {
+      const response = await fetch('/api/generate-tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, existingTasks: tasks }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API response was not successful.');
+      }
+
+      toast({ title: "New tasks generated", description: "New tasks have been added to your list." });
+    } catch (error) {
+      console.error("Error generating tasks: ", error);
+      toast({ title: "Error", description: "Could not generate new tasks.", variant: "destructive" });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   return (
     <Card className="shadow-lg">
-      <CardHeader><CardTitle>Tus Tareas</CardTitle><CardDescription>Pasos para avanzar en tu bienestar.</CardDescription></CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Tus Tareas</CardTitle>
+          <CardDescription>Pasos para avanzar en tu bienestar.</CardDescription>
+        </div>
+        <Button onClick={handleGenerateTasks} disabled={isGenerating || isLoading || !user}>
+          {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />} 
+          Generar con IA
+        </Button>
+      </CardHeader>
       <CardContent>
         {isLoading ? (
-          <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-purple-500" /><p className="ml-2 text-gray-500">Cargando...</p></div>
+          <div className="flex items-center justify-center py-4"><Loader2 className="h-6 w-6 animate-spin text-purple-500" /><p className="ml-2 text-gray-500">Loading...</p></div>
         ) : tasks.length === 0 ? (
-          <p className="text-center text-gray-500 italic py-4">No tienes tareas asignadas.</p>
+          <p className="text-center text-gray-500 italic py-4">You have no assigned tasks.</p>
         ) : (
           <div className="space-y-4">
-            {tasks.map(task => (
-                <div key={task.id} className="p-3 bg-white rounded-lg shadow-sm transition-all">
+            {tasks.map(task => {
+              const isAiTask = task.asignadaPor === 'IA Serenitea';
+              return (
+                <div key={task.id} className={`p-3 rounded-lg shadow-sm transition-all ${isAiTask ? 'bg-purple-50 border-l-4 border-purple-400' : 'bg-white'}`}>
                     <div className="flex items-start gap-3">
-                    <button onClick={() => handleToggleTask(task)} className="mt-1 flex-shrink-0">
-                        {task.estado === 'completada' ? <CheckSquare className="h-6 w-6 text-green-500" /> : <Square className="h-6 w-6 text-gray-400" />}
-                    </button>
-                    <div className="flex-grow">
-                        <p className={`text-gray-800 ${task.estado === 'completada' ? 'line-through text-gray-500' : ''}`}>{task.descripcion}</p>
-                        <div className="text-xs text-gray-500 mt-1">
-                          <span>Asignada por: <span className="font-semibold">{task.asignadaPor}</span></span>
-                          {task.fechaDue && 
-                            <span className="ml-4">Vence: {task.fechaDue.toDate().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                          }
-                        </div>
-                    </div>
+                      <button onClick={() => handleToggleTask(task)} className="mt-1 flex-shrink-0">
+                          {task.estado === 'completada' ? <CheckSquare className="h-6 w-6 text-green-500" /> : <Square className="h-6 w-6 text-gray-400" />}
+                      </button>
+                      <div className="flex-grow">
+                          <p className={`text-gray-800 ${task.estado === 'completada' ? 'line-through text-gray-500' : ''}`}>{task.descripcion}</p>
+                          <div className="text-xs text-gray-500 mt-1">
+                            <span>Assigned by: <span className="font-semibold">{task.asignadaPor}</span></span>
+                            {task.fechaDue && 
+                              <span className="ml-4">Due: {task.fechaDue.toDate().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                            }
+                          </div>
+                      </div>
                     </div>
                     
                     <div className="pl-9 mt-2">
-                    {feedbackTaskId === task.id ? (
-                        <FeedbackForm task={task} initialFeedback={task.feedback} onSubmit={(feedback) => handleFeedbackSubmit(task.id, feedback)} onCancel={() => setFeedbackTaskId(null)} />
-                    ) : (
-                        <>
-                        {task.feedback && (
-                            <Collapsible>
-                            <CollapsibleTrigger asChild><Button variant="link" size="sm" className="p-0 h-auto text-purple-600">Ver feedback</Button></CollapsibleTrigger>
-                            <CollapsibleContent><DisplayFeedback feedback={task.feedback} /></CollapsibleContent>
-                            </Collapsible>
-                        )}
-                        
-                        {task.estado === 'completada' && (
-                            <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
-                                {task.feedback ? <><Pencil className="mr-2 h-3 w-3" /> Editar</> : <><MessageSquare className="mr-2 h-3 w-3" /> Calificar</>}
-                            </Button>
-                        )}
+                      {isAiTask && task.estado === 'pendiente' && task.aiFeedback === undefined && (
+                        <div className="flex items-center gap-2 mt-2 animate-in fade-in-50">
+                          <p className="text-sm text-purple-700">¿Te gusta esta sugerencia?</p>
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => handleAiTaskFeedback(task.id, 'liked')}><ThumbsUp className="h-4 w-4 text-green-500" /></Button>
+                          <Button size="sm" variant="outline" className="h-8" onClick={() => handleAiTaskFeedback(task.id, 'disliked')}><ThumbsDown className="h-4 w-4 text-red-500" /></Button>
+                        </div>
+                      )}
 
-                        {task.estado === 'pendiente' && (
-                            <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
-                                <MessageSquare className="mr-2 h-3 w-3" /> {task.feedback?.comentario ? 'Editar nota' : 'Añadir nota'}
-                            </Button>
-                        )}
-                        </>
-                    )}
+                      {feedbackTaskId === task.id ? (
+                          <FeedbackForm task={task} initialFeedback={task.feedback} onSubmit={(feedback) => handleFeedbackSubmit(task.id, feedback)} onCancel={() => setFeedbackTaskId(null)} />
+                      ) : (
+                          <>
+                          {task.feedback && (
+                              <Collapsible>
+                              <CollapsibleTrigger asChild><Button variant="link" size="sm" className="p-0 h-auto text-purple-600">View feedback</Button></CollapsibleTrigger>
+                              <CollapsibleContent><DisplayFeedback feedback={task.feedback} /></CollapsibleContent>
+                              </Collapsible>
+                          )}
+                          
+                          {task.estado === 'completada' && (
+                              <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
+                                  {task.feedback ? <><Pencil className="mr-2 h-3 w-3" /> Edit</> : <><MessageSquare className="mr-2 h-3 w-3" /> Rate</>}
+                              </Button>
+                          )}
+
+                          {task.estado === 'pendiente' && (
+                              <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
+                                  <MessageSquare className="mr-2 h-3 w-3" /> {task.feedback?.comentario ? 'Edit note' : 'Add note'}
+                              </Button>
+                          )}
+                          </>
+                      )}
                     </div>
                 </div>
-            ))}
+              )}
+            )}
             </div>
         )}
       </CardContent>

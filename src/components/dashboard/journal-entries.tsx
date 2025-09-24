@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy, Timestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { User } from 'firebase/auth';
+import { useState } from 'react';
+import { doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { MoreHorizontal, Trash2, Edit, CheckCircle2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/firebase-client';
 import { useToast } from '@/hooks/use-toast';
-import { type JournalEntry } from '@/types'; // Importación centralizada
+import { type JournalEntry } from '@/types';
 
 import {
   AlertDialog,
@@ -20,7 +19,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 
 import {
   Dialog,
@@ -29,14 +28,14 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import { Textarea } from '@/components/ui/textarea';
 
 const formatDetailedDate = (timestamp: Timestamp) => {
@@ -45,43 +44,14 @@ const formatDetailedDate = (timestamp: Timestamp) => {
   return `${date.toLocaleDateString('es-ES')} a las ${timeString}`;
 };
 
-
-const JournalEntries = ({ user }: { user: User | null }) => {
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
+// Make this a presentational component
+const JournalEntries = ({ entries, isLoading }: { entries: JournalEntry[], isLoading: boolean }) => {
   const { toast } = useToast();
 
-  // State for Delete confirmation
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null);
-
-  // State for Edit dialog
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editText, setEditText] = useState("");
-
-  useEffect(() => {
-    if (user) {
-        setIsAuthLoading(false);
-        const q = query(
-            collection(db, 'journal_entries'), 
-            where('userId', '==', user.uid),
-            orderBy('createdAt', 'desc')
-        );
-
-        const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
-            const entriesData: JournalEntry[] = [];
-            querySnapshot.forEach((doc) => {
-            entriesData.push({ id: doc.id, ...doc.data() } as JournalEntry);
-            });
-            setEntries(entriesData);
-        });
-
-        return () => unsubscribeSnapshot();
-    } else {
-        setIsAuthLoading(true);
-        setEntries([]);
-    }
-  }, [user]);
 
   const handleDeleteClick = (entry: JournalEntry) => {
     setSelectedEntry(entry);
@@ -130,7 +100,7 @@ const JournalEntries = ({ user }: { user: User | null }) => {
           <CardTitle className="font-headline text-2xl text-gray-700">Tus Entradas Recientes</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {isAuthLoading ? (
+          {isLoading ? (
              <p className="text-gray-500 italic">Cargando entradas...</p>
           ) : entries.length > 0 ? (
             entries.map(entry => (
@@ -146,7 +116,6 @@ const JournalEntries = ({ user }: { user: User | null }) => {
                         <p className="text-xs text-gray-500 mt-2">{formatDetailedDate(entry.createdAt)}</p>
                     </div>
                     
-                    {/* --- Dropdown Menu --- */}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0 h-8 w-8">
@@ -174,7 +143,7 @@ const JournalEntries = ({ user }: { user: User | null }) => {
       </Card>
 
       {/* --- Dialogs for Edit/Delete --- */}
-      <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
+       <AlertDialog open={isDeleteAlertOpen} onOpenChange={setIsDeleteAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Estás seguro de que quieres eliminar esta entrada?</AlertDialogTitle>

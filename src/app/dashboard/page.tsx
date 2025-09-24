@@ -209,7 +209,7 @@ export default function PatientDashboard() {
                 )}
               </div>
 
-              <JournalEntries user={currentUser} />
+              <JournalEntries entries={journalEntries.slice(0, 5)} isLoading={isAuthLoading} />
 
             </div>
 
