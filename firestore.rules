@@ -31,12 +31,13 @@ service cloud.firestore {
 
     // Rules for 'tareas' collection
     match /tareas/{tareaId} {
-      // A user can read or update a task if its pacienteId matches their own UID.
-      allow read, update: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
+        // A user can create a task for themselves
+        allow create: if isSignedIn() && request.resource.data.pacienteId == request.auth.uid;
 
-      // Allow creation of tasks by any authenticated user (e.g., a psychologist or the app itself)
-      allow create: if isSignedIn();
+        // A user can read, update, or delete their own tasks
+        allow read, update, delete: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
     }
+    
      match /psychologists/{psychologistId} {
       // Public profiles of approved psychologists can be read by anyone.
       // A psychologist can always read their own profile.

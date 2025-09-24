@@ -1,37 +1,54 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import CrisisModal from './crisis-modal';
-import { ShieldQuestion, Leaf } from 'lucide-react'; // <-- 1. Import Leaf icon
-import Link from 'next/link'; // <-- 2. Import Link for navigation
+import { LogOut } from 'lucide-react';
+import { signOut } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 
-const MainHeader = () => {
-  const [isModalOpen, setModalOpen] = useState(false);
+import { useAuth } from '@/hooks/use-auth';
+import { auth } from '@/lib/firebase-client';
+import { MainNav } from '@/components/dashboard/main-nav';
+import { MobileNav } from '@/components/dashboard/mobile-nav';
+import { UserNav } from '@/components/dashboard/user-nav';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+
+export default function MainHeader() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+  const displayName = user?.displayName || 'Usuario';
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      toast({ description: "Has cerrado sesión exitosamente." });
+      router.push('/login');
+    } catch (error) {
+      console.error('Error al cerrar sesión: ', error);
+      toast({ 
+        title: "Error", 
+        description: "No se pudo cerrar la sesión. Por favor, intenta de nuevo.",
+        variant: "destructive"
+      });
+    }
+  };
 
   return (
-    <>
-      <header className="bg-white shadow-sm p-4 flex justify-between items-center">
-        <div className="flex items-center gap-8">
-            {/* 3. Replaced Image with the icon and text structure */}
-            <Link href="/" className="flex items-center gap-2" aria-label="Back to homepage">
-                <Leaf className="h-7 w-7 text-purple-100 bg-purple-600/90 p-1 rounded-md" />
-                <span className="text-xl font-bold font-headline text-gray-800">SereniTea</span>
-            </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm text-gray-600 font-medium">
-            <a href="/dashboard" className="hover:text-purple-600">Panel</a>
-            <a href="/forum" className="hover:text-purple-600">Foro</a>
-            <a href="#" className="hover:text-purple-600">Descubrir</a>
-          </nav>
+    <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="container flex h-16 items-center justify-between">
+        <MainNav />
+        <MobileNav />
+        <div className="flex items-center space-x-4">
+          <p className="hidden text-sm font-medium sm:block">
+            Hola, {displayName}
+          </p>
+          <Button variant="outline" size="sm" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Cerrar Sesión
+          </Button>
+          <UserNav />
         </div>
-        <Button variant="destructive" className="bg-red-500 hover:bg-red-600 text-white rounded-lg" onClick={() => setModalOpen(true)}>
-          <ShieldQuestion className="mr-2 h-4 w-4" />
-          Soporte en Crisis
-        </Button>
-      </header>
-      <CrisisModal isOpen={isModalOpen} onClose={() => setModalOpen(false)} />
-    </>
+      </div>
+    </header>
   );
-};
-
-export default MainHeader;
+}

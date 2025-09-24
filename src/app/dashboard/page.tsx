@@ -136,7 +136,7 @@ export default function PatientDashboard() {
     </div>
   );
 
-  const greetingName = currentUser?.displayName || 'de nuevo';
+  const displayName = currentUser?.displayName;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -145,7 +145,9 @@ export default function PatientDashboard() {
         <div className="max-w-7xl mx-auto">
           
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">Bienvenido, {greetingName}</h1>
+            <h1 className="text-3xl font-bold text-gray-800">
+              Bienvenido de nuevo{displayName ? `, ${displayName}` : ''}
+            </h1>
             <p className="text-gray-600">¿Listo para continuar tu viaje? Estamos aquí contigo.</p>
           </div>
 
