@@ -1,20 +1,17 @@
 import admin from 'firebase-admin';
 
-// This approach mirrors the one used in `scripts/seed-tasks.js` by loading the service account key directly.
-// The path is relative from this file's location in `src/lib` to the project root where `serviceAccountKey.json` should be.
-try {
-  const serviceAccount = require('../../serviceAccountKey.json');
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+  : require('../../serviceAccountKey.json');
 
+try {
   if (!admin.apps.length) {
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
   }
 } catch (error) {
-  console.error(
-    'Firebase Admin SDK initialization error. Please make sure your `serviceAccountKey.json` file is in the root of your project.',
-    error
-  );
+  console.error('Firebase Admin SDK initialization error.', error);
 }
 
 const db = admin.firestore();
