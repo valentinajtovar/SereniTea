@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { PlusCircle, CheckCircle2 } from 'lucide-react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
@@ -22,7 +22,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { db, auth } from '@/lib/firebase-client';
 import Tasks from '@/components/dashboard/tasks';
-import JournalEntries from '@/components/dashboard/journal-entries';
+import JournalEntries, { type JournalEntry } from '@/components/dashboard/journal-entries'; // Importando el tipo
+import MoodTracker from '@/components/dashboard/mood-tracker'; // Importando el MoodTracker
 import MainHeader from '@/components/dashboard/main-header';
 import QuickTip from '@/components/dashboard/quick-tip';
 
@@ -48,6 +49,7 @@ export default function PatientDashboard() {
   const [showFullForm, setShowFullForm] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]); // Estado para las entradas
 
   const form = useForm<z.infer<typeof dailyEntrySchema>>({
     resolver: zodResolver(dailyEntrySchema),
@@ -56,24 +58,44 @@ export default function PatientDashboard() {
 
   const selectedMainEmotion = form.watch('mainEmotion') as Emotion | '';
 
+  // Efecto para la autenticación
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       setCurrentUser(user);
       setIsAuthLoading(false);
     });
-
     const storedDate = localStorage.getItem('lastDailyEntryDate');
     const today = getTodayDateString();
     if (storedDate === today) {
       setShowFullForm(false);
     }
     setLastEntryDate(storedDate);
-
     return () => unsubscribe();
   }, []);
 
+  // Efecto para cargar las entradas del diario
+  useEffect(() => {
+    if (currentUser) {
+      const q = query(
+        collection(db, 'journal_entries'), 
+        where('userId', '==', currentUser.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const unsubscribe = onSnapshot(q, (querySnapshot) => {
+        const entriesData: JournalEntry[] = [];
+        querySnapshot.forEach((doc) => {
+          entriesData.push({ id: doc.id, ...doc.data() } as JournalEntry);
+        });
+        setJournalEntries(entriesData);
+      });
+      return () => unsubscribe();
+    } else {
+      setJournalEntries([]);
+    }
+  }, [currentUser]);
+
   const onSubmit = async (data: z.infer<typeof dailyEntrySchema>) => {
-    if (!currentUser) {
+     if (!currentUser) {
       toast({ title: "Error", description: "Sesión no encontrada. Recarga la página.", variant: "destructive" });
       return;
     }
@@ -131,14 +153,14 @@ export default function PatientDashboard() {
             
             {/* --- COLUMNA IZQUIERDA (PRINCIPAL) --- */}
             <div className="lg:col-span-2 space-y-8">
-              <div className="p-8 bg-white rounded-2xl shadow-lg">
+              {/* ... (código del formulario de registro diario) ... */}
+               <div className="p-8 bg-white rounded-2xl shadow-lg">
                 <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>
                 <p className="text-gray-600 mb-6">Tómate un momento para conectar contigo. ¿Cómo te sientes hoy?</p>
 
                 {showFullForm ? (
                   <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                      {/* ... (campos del formulario) ... */}
                       <FormField control={form.control} name="mainEmotion" render={({ field }) => (
                           <FormItem>
                             <FormLabel className="text-lg font-semibold text-gray-700">Elige tu emoción principal</FormLabel>
@@ -187,16 +209,16 @@ export default function PatientDashboard() {
                 )}
               </div>
 
-              {/* --- ENTRADAS RECIENTES MOVIDAS AQUÍ --- */}
               <JournalEntries user={currentUser} />
 
             </div>
 
             {/* --- COLUMNA DERECHA (LATERAL) --- */}
             <div className="space-y-8">
+              {/* --- CALENDARIO RESTAURADO AQUÍ --- */}
+              <MoodTracker entries={journalEntries} />
               <QuickTip />
               <Tasks />
-              {/* El componente MoodTracker (los cuadrados de colores) se mantiene aquí */}
             </div>
 
           </div>

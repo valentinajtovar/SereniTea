@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, updateProfile } from 'firebase/auth'; // Importar updateProfile
 import { collection, query, where, getDocs } from 'firebase/firestore';
 
 import { auth, db } from '@/lib/firebase-client';
@@ -60,15 +60,21 @@ export default function LoginPage() {
           variant: "destructive",
         });
       } else {
-        const patientDoc = querySnapshot.docs[0];
-        const patientId = patientDoc.id;
+        const patientDoc = querySnapshot.docs[0].data(); // Obtener los datos del paciente
+        const patientName = patientDoc.nombre; // Asumiendo que el campo se llama 'nombre'
 
-        console.log(`Patient found! ID: ${patientId}. Storing in session and redirecting...`);
-
+        // --- ACTUALIZACIÓN DEL PERFIL ---
+        if (patientName && user) {
+            await updateProfile(user, { displayName: patientName });
+            console.log(`User profile updated with displayName: ${patientName}`);
+        }
+        // --------------------------------
+        
+        const patientId = querySnapshot.docs[0].id;
         localStorage.setItem('patientId', patientId);
 
         toast({
-          title: "¡Bienvenido/a de nuevo!",
+          title: `¡Bienvenido/a de nuevo, ${patientName || ''}!`, // Saludo personalizado
           description: "Has iniciado sesión correctamente.",
         });
 

@@ -3,23 +3,40 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is the owner of the data
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    // Helper function to check user roles
+    function isOneOfRoles(rsc, array) {
+      return rsc.data.roles[request.auth.token.email] in array;
     }
 
-    // Journal Entries: Users can only read/write their own entries.
-    match /journal_entries/{entryId} {
-      allow read, create: if request.auth != null;
-      allow update, delete: if isOwner(resource.data.userId);
+    // Rules for 'paciente' collection
+    match /paciente/{pacienteId} {
+      // Allow read/write access only to the authenticated user who owns the document
+      allow read, write: if request.auth != null && request.auth.uid == pacienteId;
     }
-    
-    // Assigned Tasks: Users can manage their own tasks.
+
+    // Rules for 'journal_entries' collection
+    match /journal_entries/{entryId} {
+      // A user can create a journal entry if they are logged in and the entry is for themselves
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // A user can read, update, and delete their own journal entries
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+
+    // Rules for 'assigned_tasks' collection
     match /assigned_tasks/{taskId} {
-      // Allow read and create if the user is authenticated.
-      allow read, create: if request.auth != null;
-      // Allow update and delete only if the user is the owner of the task.
-      allow update, delete: if isOwner(resource.data.userId);
+      // Psychologists can create, read, update, delete tasks.
+      // Patients can only read or update (e.g., mark as complete) tasks assigned to them.
+      allow read, update: if request.auth != null && resource.data.userId == request.auth.uid;
+      // Allow full access for psychologists (example role check, needs implementation)
+      // allow write: if request.auth.token.role == 'psychologist';
+    }
+
+    // Rules for stories (example from documentation)
+    match /stories/{story} {
+      allow create: if request.auth != null;
+      allow read, delete: if request.auth != null && resource.data.author == request.auth.uid;
+      allow update: if request.auth != null && resource.data.author == request.auth.uid;
     }
   }
 }
