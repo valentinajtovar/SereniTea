@@ -36,3 +36,9 @@ export interface JournalEntry {
   journal: string;
   emotionEmoji: string;
 }
+
+// --- Tipos para Paciente ---
+export interface Patient {
+    id: string;
+    nombre_completo: string;
+}

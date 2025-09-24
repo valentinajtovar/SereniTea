@@ -97,7 +97,6 @@ const Tasks = ({ user }: { user: User | null }) => {
     const q = query(collection(db, "tareas"), where("pacienteId", "==", user.uid), orderBy("fechaDue", "asc"));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const tasksData: Task[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-      console.log(`Número de tareas para el usuario ${user?.uid}:`, tasksData.length);
       setTasks(tasksData);
       setIsLoading(false);
     }, (error) => {
@@ -138,24 +137,6 @@ const Tasks = ({ user }: { user: User | null }) => {
     }
   }
 
-  const today = new Date();
-  today.setHours(0,0,0,0);
-
-  const groupedTasks = tasks.reduce((acc, task) => {
-    const taskDate = task.fechaDue.toDate();
-    taskDate.setHours(0,0,0,0);
-    const diffDays = Math.round((taskDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
-    let key = 'Próximamente';
-    if (diffDays < 0) key = 'Pasadas';
-    else if (diffDays === 0) key = 'Hoy';
-    else if (diffDays === 1) key = 'Mañana';
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(task);
-    return acc;
-  }, {} as Record<string, Task[]>);
-
-  const groupOrder: (keyof typeof groupedTasks)[] = ['Hoy', 'Mañana', 'Próximamente', 'Pasadas'];
-
   return (
     <Card className="shadow-lg">
       <CardHeader><CardTitle>Tus Tareas</CardTitle><CardDescription>Pasos para avanzar en tu bienestar.</CardDescription></CardHeader>
@@ -165,55 +146,53 @@ const Tasks = ({ user }: { user: User | null }) => {
         ) : tasks.length === 0 ? (
           <p className="text-center text-gray-500 italic py-4">No tienes tareas asignadas.</p>
         ) : (
-          <div className="space-y-6">
-            {groupOrder.map(group => groupedTasks[group] && (
-              <div key={group}>
-                <h3 className="font-semibold text-lg text-purple-700 border-b-2 border-purple-100 pb-1 mb-3">{group}</h3>
-                <div className="space-y-4">
-                  {groupedTasks[group].map(task => (
-                    <div key={task.id} className="p-3 bg-white rounded-lg shadow-sm transition-all">
-                      <div className="flex items-start gap-3">
-                        <button onClick={() => handleToggleTask(task)} className="mt-1 flex-shrink-0">
-                          {task.estado === 'completada' ? <CheckSquare className="h-6 w-6 text-green-500" /> : <Square className="h-6 w-6 text-gray-400" />}
-                        </button>
-                        <div className="flex-grow">
-                          <p className={`text-gray-800 ${task.estado === 'completada' ? 'line-through text-gray-500' : ''}`}>{task.descripcion}</p>
-                          <div className="text-xs text-gray-500 mt-1"><span>Asignada por: <span className="font-semibold">{task.asignadaPor}</span></span></div>
+          <div className="space-y-4">
+            {tasks.map(task => (
+                <div key={task.id} className="p-3 bg-white rounded-lg shadow-sm transition-all">
+                    <div className="flex items-start gap-3">
+                    <button onClick={() => handleToggleTask(task)} className="mt-1 flex-shrink-0">
+                        {task.estado === 'completada' ? <CheckSquare className="h-6 w-6 text-green-500" /> : <Square className="h-6 w-6 text-gray-400" />}
+                    </button>
+                    <div className="flex-grow">
+                        <p className={`text-gray-800 ${task.estado === 'completada' ? 'line-through text-gray-500' : ''}`}>{task.descripcion}</p>
+                        <div className="text-xs text-gray-500 mt-1">
+                          <span>Asignada por: <span className="font-semibold">{task.asignadaPor}</span></span>
+                          {task.fechaDue && 
+                            <span className="ml-4">Vence: {task.fechaDue.toDate().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                          }
                         </div>
-                      </div>
-                      
-                      <div className="pl-9 mt-2">
-                        {feedbackTaskId === task.id ? (
-                          <FeedbackForm task={task} initialFeedback={task.feedback} onSubmit={(feedback) => handleFeedbackSubmit(task.id, feedback)} onCancel={() => setFeedbackTaskId(null)} />
-                        ) : (
-                          <>
-                            {task.feedback && (
-                              <Collapsible>
-                                <CollapsibleTrigger asChild><Button variant="link" size="sm" className="p-0 h-auto text-purple-600">Ver feedback</Button></CollapsibleTrigger>
-                                <CollapsibleContent><DisplayFeedback feedback={task.feedback} /></CollapsibleContent>
-                              </Collapsible>
-                            )}
-                            
-                            {task.estado === 'completada' && (
-                                <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
-                                    {task.feedback ? <><Pencil className="mr-2 h-3 w-3" /> Editar</> : <><MessageSquare className="mr-2 h-3 w-3" /> Calificar</>}
-                                </Button>
-                            )}
-
-                            {task.estado === 'pendiente' && (
-                                <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
-                                    <MessageSquare className="mr-2 h-3 w-3" /> {task.feedback?.comentario ? 'Editar nota' : 'Añadir nota'}
-                                </Button>
-                            )}
-                          </>
-                        )}
-                      </div>
                     </div>
-                  ))}
+                    </div>
+                    
+                    <div className="pl-9 mt-2">
+                    {feedbackTaskId === task.id ? (
+                        <FeedbackForm task={task} initialFeedback={task.feedback} onSubmit={(feedback) => handleFeedbackSubmit(task.id, feedback)} onCancel={() => setFeedbackTaskId(null)} />
+                    ) : (
+                        <>
+                        {task.feedback && (
+                            <Collapsible>
+                            <CollapsibleTrigger asChild><Button variant="link" size="sm" className="p-0 h-auto text-purple-600">Ver feedback</Button></CollapsibleTrigger>
+                            <CollapsibleContent><DisplayFeedback feedback={task.feedback} /></CollapsibleContent>
+                            </Collapsible>
+                        )}
+                        
+                        {task.estado === 'completada' && (
+                            <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
+                                {task.feedback ? <><Pencil className="mr-2 h-3 w-3" /> Editar</> : <><MessageSquare className="mr-2 h-3 w-3" /> Calificar</>}
+                            </Button>
+                        )}
+
+                        {task.estado === 'pendiente' && (
+                            <Button size="sm" variant="outline" className="mt-2" onClick={() => setFeedbackTaskId(task.id)}>
+                                <MessageSquare className="mr-2 h-3 w-3" /> {task.feedback?.comentario ? 'Editar nota' : 'Añadir nota'}
+                            </Button>
+                        )}
+                        </>
+                    )}
+                    </div>
                 </div>
-              </div>
             ))}
-          </div>
+            </div>
         )}
       </CardContent>
     </Card>

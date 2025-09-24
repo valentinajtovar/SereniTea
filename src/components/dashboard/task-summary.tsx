@@ -3,15 +3,14 @@
 import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 import { User } from 'firebase/auth';
-import { CheckSquare, Square, Loader2, ArrowRight } from 'lucide-react';
+import { Square, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { db } from '@/lib/firebase-client';
-import { type Task } from '@/types'; // Importación centralizada
+import { type Task } from '@/types';
 
-// --- Component --- //
 const TaskSummary = ({ user }: { user: User | null }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -23,15 +22,14 @@ const TaskSummary = ({ user }: { user: User | null }) => {
     }
 
     setIsLoading(true);
-    const today = new Date();
-    const startOfToday = new Date(today.setHours(0, 0, 0, 0));
-    const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
 
     const q = query(
-      collection(db, "tareas"), 
-      where("userId", "==", user.uid), // Corregido
+      collection(db, "tareas"),
+      where("pacienteId", "==", user.uid),
+      where("estado", "==", "pendiente"),
       where("fechaDue", ">=", Timestamp.fromDate(startOfToday)),
-      where("fechaDue", "<=", Timestamp.fromDate(endOfToday)),
       orderBy("fechaDue", "asc")
     );
 
@@ -40,24 +38,42 @@ const TaskSummary = ({ user }: { user: User | null }) => {
       setTasks(tasksData);
       setIsLoading(false);
     }, (error) => {
-      console.error("Error fetching today's tasks: ", error);
-      // Este error probablemente es por el índice, el usuario debería recibir un link para crearlo.
-      // Por ahora, solo mostramos un error simple.
+      console.error("Error fetching pending tasks: ", error);
       setIsLoading(false);
     });
 
     return () => unsubscribe();
   }, [user]);
 
+  const endOfToday = new Date();
+  endOfToday.setHours(23, 59, 59, 999);
+
+  const todayTasks = tasks.filter(task => task.fechaDue.toDate() <= endOfToday);
+  const upcomingTasks = tasks.filter(task => task.fechaDue.toDate() > endOfToday);
+
+  const TaskItem = ({ task, showTime }: { task: Task; showTime?: boolean }) => (
+    <div className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50">
+      <Square className="h-5 w-5 text-gray-400 flex-shrink-0 mt-1" />
+      <div className="flex-grow">
+        <p className="text-gray-800">{task.descripcion}</p>
+        <p className="text-sm text-gray-500 capitalize">
+          {showTime
+            ? task.fechaDue.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+            : task.fechaDue.toDate().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <Card className="shadow-md">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle className="font-headline text-2xl">Tareas para Hoy</CardTitle>
-          <CardDescription>Tus prioridades para el día.</CardDescription>
+          <CardTitle className="font-headline text-2xl">Tareas Pendientes</CardTitle>
+          <CardDescription>Tus próximas prioridades.</CardDescription>
         </div>
         <Button asChild variant="ghost">
-            <Link href="/dashboard/tasks">Ver Todas <ArrowRight className="ml-2 h-4 w-4" /></Link>
+          <Link href="/dashboard/tasks">Ver Todas <ArrowRight className="ml-2 h-4 w-4" /></Link>
         </Button>
       </CardHeader>
       <CardContent>
@@ -66,20 +82,25 @@ const TaskSummary = ({ user }: { user: User | null }) => {
             <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
           </div>
         ) : tasks.length === 0 ? (
-          <p className="text-center text-gray-500 italic py-4">No tienes tareas para hoy. ¡Aprovecha para descansar!</p>
+          <p className="text-center text-gray-500 italic py-4">¡No tienes tareas pendientes! ¡Buen trabajo!</p>
         ) : (
-          <div className="space-y-3">
-            {tasks.map(task => (
-              <div key={task.id} className="flex items-center gap-3">
-                 {task.estado === 'completada' ? 
-                    <CheckSquare className="h-6 w-6 text-green-500 flex-shrink-0" /> : 
-                    <Square className="h-6 w-6 text-gray-400 flex-shrink-0" />
-                  }
-                <p className={`flex-grow text-gray-800 ${task.estado === 'completada' ? 'line-through text-gray-500' : ''}`}>
-                  {task.descripcion}
-                </p>
+          <div className="space-y-4">
+            {todayTasks.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-gray-700 mb-2 px-2">Hoy</h3>
+                <div className="space-y-1">
+                  {todayTasks.map(task => <TaskItem key={task.id} task={task} showTime />)}
+                </div>
               </div>
-            ))}
+            )}
+            {upcomingTasks.length > 0 && (
+              <div>
+                <h3 className="font-semibold text-gray-700 mt-4 mb-2 px-2">Pronto</h3>
+                <div className="space-y-1">
+                  {upcomingTasks.map(task => <TaskItem key={task.id} task={task} />)}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </CardContent>

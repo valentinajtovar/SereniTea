@@ -1,0 +1,93 @@
+
+[
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Revisar el módulo de 'Introducción a la Terapia Cognitivo-Conductual'.",
+    "estado": "completada",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721606400,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Escribir en el diario sobre 3 cosas por las que estás agradecido.",
+    "estado": "completada",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721692800,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Hacer 10 minutos de meditación guiada.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721692800,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Salir a caminar 15 minutos al aire libre.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721779200,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Planificar tus comidas saludables para mañana.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721779200,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Leer un capítulo de un libro que te interese.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721865600,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Probar una nueva receta saludable.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1721952000,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Hacer una lista de tus fortalezas personales.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1722124800,
+      "_nanoseconds": 0
+    }
+  },
+  {
+    "pacienteId": "RxyjffvV2phka8ZKCeC6Gw1PwT52",
+    "descripcion": "Reflexionar sobre tu progreso y establecer una nueva meta.",
+    "estado": "pendiente",
+    "asignadaPor": "Dr. AI",
+    "fechaDue": {
+      "_seconds": 1722297600,
+      "_nanoseconds": 0
+    }
+  }
+]
