@@ -20,7 +20,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (user) {
-      const userRef = doc(db, 'pacientes', user.uid);
+      const userRef = doc(db, 'paciente', user.uid);
       const unsubscribe = onSnapshot(userRef, (doc) => {
         if (doc.exists()) {
           setUserProfile({ id: doc.id, ...doc.data() } as Patient);

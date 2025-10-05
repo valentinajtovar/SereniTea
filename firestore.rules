@@ -29,8 +29,13 @@ service cloud.firestore {
       // A user can create an entry if they are logged in and the entry is for themselves
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       
-      // A user can read, list, update, and delete their own entries
-      allow read, list, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+      // A user can get, update, and delete their own entries
+      allow get, update, delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      // A user can list entries if they are logged in.
+      // IMPORTANT: To keep data secure, your client-side query must filter by userId.
+      // For example: collection("journal_entries").where("userId", "==", auth.currentUser.uid)
+      allow list: if isSignedIn();
     }
 
     // Rules for 'tareas' collection
@@ -38,8 +43,13 @@ service cloud.firestore {
         // A user can create a task for themselves
         allow create: if isSignedIn() && request.resource.data.pacienteId == request.auth.uid;
 
-        // A user can read, list, update, or delete their own tasks
-        allow read, list, update, delete: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
+        // A user can read, update, or delete their own tasks
+        allow get, update, delete: if isSignedIn() && resource.data.pacienteId == request.auth.uid;
+
+        // A user can list tasks if they are logged in.
+        // IMPORTANT: To keep data secure, your client-side query must filter by pacienteId.
+        // For example: collection("tareas").where("pacienteId", "==", auth.currentUser.uid)
+        allow list: if isSignedIn();
     }
     
      match /psychologists/{psychologistId} {
