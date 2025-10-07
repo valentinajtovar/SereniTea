@@ -7,10 +7,7 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
 
-import { auth, db } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -57,36 +54,19 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsRegisterLoading(true);
-
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      await updateProfile(user, { displayName: values.name });
-
-      const patientDocRef = doc(db, 'paciente', user.uid);
-
-      await setDoc(patientDocRef, {
-        nombre_completo: values.name,
-        correo: values.email,
-        nacimiento: Timestamp.fromDate(new Date(values.birthdate)),
-        usuario_anonimo: values.anonymousName,
-      });
+      // Store user data in localStorage
+      localStorage.setItem('registrationData', JSON.stringify(values));
 
       toast({
-        title: "¡Registro exitoso!",
-        description: "Tu cuenta ha sido creada y tu perfil guardado.",
+        title: "Datos guardados temporalmente",
+        description: "Ahora completa la evaluación para finalizar tu registro.",
       });
 
-      router.push('/login');
-    } catch (error: any) {
-      console.error("Registration error:", error);
-      let description = "Ocurrió un error inesperado.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "Este correo electrónico ya está en uso. Por favor, intenta con otro.";
-      }
-      toast({ title: "Error en el registro", description, variant: "destructive" });
-    } finally {
+      router.push('/assessment');
+    } catch (error) {
+      console.error("Redirection to assessment error:", error);
+      toast({ title: "Error", description: "No se pudo redirigir a la evaluación.", variant: "destructive" });
       setIsRegisterLoading(false);
     }
   }
@@ -107,7 +87,7 @@ export default function RegisterPage() {
               <FormField control={form.control} name="birthdate" render={({ field }) => (<FormItem><FormLabel>Fecha de Nacimiento</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="anonymousName" render={({ field }) => (<FormItem><FormLabel>Nombre de Usuario Anónimo</FormLabel><FormControl><Input placeholder="ej. lago_azul" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <Button type="submit" className="w-full" disabled={isRegisterLoading}>
-                {isRegisterLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />} Registrarse
+                {isRegisterLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />} Siguiente
               </Button>
             </form>
           </Form>
