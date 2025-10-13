@@ -1,11 +1,11 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { PlusCircle, CheckCircle2 } from 'lucide-react';
-import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { User } from 'firebase/auth';
 
 import { Button } from '@/components/ui/button';
@@ -20,13 +20,13 @@ import {
 } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
-import { db, auth } from '@/lib/firebase-client';
+import { auth } from '@/lib/firebase-client';
 import TaskSummary from '@/components/dashboard/task-summary';
 import JournalEntries from '@/components/dashboard/journal-entries'; 
 import MoodTracker from '@/components/dashboard/mood-tracker'; 
 import MainHeader from '@/components/dashboard/main-header';
 import QuickTip from '@/components/dashboard/quick-tip';
-import { type JournalEntry } from '@/types'; // Importación centralizada
+import { type JournalEntry } from '@/types';
 
 const emotions = {
   Alegria: { emoji: '😊', subEmotions: ['Feliz', 'Emocionado', 'Orgulloso', 'Optimista'] },
@@ -46,11 +46,11 @@ const dailyEntrySchema = z.object({
 const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
 export default function PatientDashboard() {
-  const [lastEntryDate, setLastEntryDate] = useState<string | null>(null);
   const [showFullForm, setShowFullForm] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [isLoadingEntries, setIsLoadingEntries] = useState(true);
 
   const form = useForm<z.infer<typeof dailyEntrySchema>>({
     resolver: zodResolver(dailyEntrySchema),
@@ -59,39 +59,40 @@ export default function PatientDashboard() {
 
   const selectedMainEmotion = form.watch('mainEmotion') as Emotion | '';
 
+  const fetchJournalEntries = useCallback(async (user: User) => {
+    setIsLoadingEntries(true);
+    try {
+      const token = await user.getIdToken();
+      const response = await fetch('/api/journal', {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch entries');
+      const data = await response.json();
+      setJournalEntries(data);
+    } catch (error) {
+      console.error(error);
+      toast({ title: "Error", description: "No se pudieron cargar las entradas del diario.", variant: "destructive" });
+    } finally {
+      setIsLoadingEntries(false);
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       setCurrentUser(user);
       setIsAuthLoading(false);
+      if (user) {
+        fetchJournalEntries(user);
+      } else {
+        setJournalEntries([]);
+      }
     });
-    const storedDate = localStorage.getItem('lastDailyEntryDate');
     const today = getTodayDateString();
-    if (storedDate === today) {
-      setShowFullForm(false);
-    }
-    setLastEntryDate(storedDate);
+    const storedDate = localStorage.getItem('lastDailyEntryDate');
+    if (storedDate === today) setShowFullForm(false);
+    
     return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (currentUser) {
-      const q = query(
-        collection(db, 'journal_entries'), 
-        where('userId', '==', currentUser.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const unsubscribe = onSnapshot(q, (querySnapshot) => {
-        const entriesData: JournalEntry[] = [];
-        querySnapshot.forEach((doc) => {
-          entriesData.push({ id: doc.id, ...doc.data() } as JournalEntry);
-        });
-        setJournalEntries(entriesData);
-      });
-      return () => unsubscribe();
-    } else {
-      setJournalEntries([]);
-    }
-  }, [currentUser]);
+  }, [fetchJournalEntries]);
 
   const onSubmit = async (data: z.infer<typeof dailyEntrySchema>) => {
      if (!currentUser) {
@@ -100,26 +101,39 @@ export default function PatientDashboard() {
     }
 
     try {
-      const newEntry = {
-        userId: currentUser.uid,
-        createdAt: new Date(),
+      const token = await currentUser.getIdToken();
+      const newEntryPayload = {
         mainEmotion: data.mainEmotion,
         subEmotion: data.subEmotion,
         journal: data.journal,
         emotionEmoji: emotions[data.mainEmotion as Emotion]?.emoji || ''
       };
       
-      await addDoc(collection(db, 'journal_entries'), newEntry);
+      const response = await fetch('/api/journal', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(newEntryPayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save entry');
+      }
+
+      const savedEntry = await response.json();
+      setJournalEntries(prevEntries => [savedEntry, ...prevEntries]);
 
       const today = getTodayDateString();
       localStorage.setItem('lastDailyEntryDate', today);
-      setLastEntryDate(today);
       setShowFullForm(false);
       form.reset();
-      toast({ title: "¡Registro guardado!", description: "Tu entrada ha sido guardada.", action: <CheckCircle2 className="text-green-500" /> });
+      toast({ title: "¡Registro guardado!", description: "Tu entrada ha sido guardada en MongoDB.", action: <CheckCircle2 className="text-green-500" /> });
     } catch (error: any) {
-      console.error("Error al añadir el documento: ", error);
-      toast({ title: "Error al guardar", description: "No se pudo guardar tu entrada.", variant: "destructive" });
+      console.error("Error al guardar la entrada: ", error);
+      toast({ title: "Error al guardar", description: error.message || "No se pudo guardar tu entrada.", variant: "destructive" });
     }
   };
 
@@ -153,7 +167,6 @@ export default function PatientDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <div className="lg:col-span-2 space-y-8">
-              {/* ... (código del formulario de registro diario) ... */}
                <div className="p-8 bg-white rounded-2xl shadow-lg">
                 <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>
                 <p className="text-gray-600 mb-6">Tómate un momento para conectar contigo. ¿Cómo te sientes hoy?</p>
@@ -209,7 +222,7 @@ export default function PatientDashboard() {
                 )}
               </div>
 
-              <JournalEntries entries={journalEntries.slice(0, 5)} isLoading={isAuthLoading} />
+              <JournalEntries entries={journalEntries.slice(0, 5)} isLoading={isLoadingEntries} />
 
             </div>
 
