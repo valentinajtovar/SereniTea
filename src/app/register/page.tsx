@@ -7,10 +7,9 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc, Timestamp } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth'; // Changed import
 
-import { auth, db } from '@/lib/firebase-client';
+import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -59,33 +58,36 @@ export default function RegisterPage() {
     setIsRegisterLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
-
-      await updateProfile(user, { displayName: values.name });
-
-      const patientDocRef = doc(db, 'paciente', user.uid);
-
-      await setDoc(patientDocRef, {
-        nombre_completo: values.name,
-        correo: values.email,
-        nacimiento: Timestamp.fromDate(new Date(values.birthdate)),
-        usuario_anonimo: values.anonymousName,
+      // The backend will now handle user creation in Firebase and MongoDB
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values), // Send only form values
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'Something went wrong during registration.');
+      }
+
+      // After successful registration in the backend, sign in the user on the client
+      await signInWithEmailAndPassword(auth, values.email, values.password);
 
       toast({
         title: "¡Registro exitoso!",
-        description: "Tu cuenta ha sido creada y tu perfil guardado.",
+        description: "Tu cuenta ha sido creada. Ahora serás redirigido.",
       });
 
-      router.push('/login');
+      router.push('/login'); // Redirect to login or dashboard
     } catch (error: any) {
       console.error("Registration error:", error);
-      let description = "Ocurrió un error inesperado.";
-      if (error.code === 'auth/email-already-in-use') {
-        description = "Este correo electrónico ya está en uso. Por favor, intenta con otro.";
-      }
-      toast({ title: "Error en el registro", description, variant: "destructive" });
+      toast({ 
+        title: "Error en el registro", 
+        description: error.message || "Ocurrió un error inesperado.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsRegisterLoading(false);
     }

@@ -1,8 +1,8 @@
 export const runtime = "nodejs";
 import { NextResponse } from "next/server";
-import { admin } from "@/src/lib/firebase-admin";
-import { dbConnect } from "@/src/lib/db";
-import { Paciente } from "@/src/models/Paciente";
+import { admin } from "@/lib/firebase-admin";
+import { dbConnect } from "@/lib/db";
+import { Paciente } from "@/models/Paciente";
 
 export async function GET(req: Request) {
   try {
