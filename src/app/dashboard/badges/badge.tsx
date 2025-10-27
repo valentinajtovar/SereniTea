@@ -4,7 +4,13 @@ import MainHeader from "@/components/dashboard/main-header";
 import React, { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 // UI imports not needed here; inline styles are used for this view
-
+const badgeContainerStyle = {
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)", // 3 columnas
+    gridTemplateRows: "repeat(2, auto)", // 2 filas
+    gap: 18,
+    justifyItems: "center",
+};
 /**
  * Badges UI
  *
@@ -26,9 +32,12 @@ type BadgeSpec = {
 
 /* Badge definitions: ahora medallas por número de entradas (en español) */
 const BADGES: BadgeSpec[] = [
-    { id: "badge-50", title: "50 entradas", requirement: 50, description: "Registra 50 entradas para desbloquear esta medalla", defaultColor: "hsl(150 50% 25%)" },
-    { id: "badge-100", title: "100 entradas", requirement: 100, description: "Alcanza 100 entradas y serás recompensado", defaultColor: "hsl(195 50% 25%)" },
-    { id: "badge-500", title: "500 entradas", requirement: 500, description: "Hito épico: 500 entradas, ¡muy bien hecho!", defaultColor: "hsl(43 74% 66%)" },
+    { id: "badge-5", title: "5 entradas", requirement: 5, description: "Con pequeños pasos reclamarás esta medalla de 5 entradas", defaultColor: "#a8e6cf" },
+    { id: "badge-10", title: "10 entradas", requirement: 10, description: "Con 10 entradas desbloquearás esta medalla", defaultColor: "#b3d9ff" },
+    { id: "badge-25", title: "25 entradas", requirement: 25, description: "25 entradas son requeridas para desbloquear esta medalla", defaultColor: "#a8e6cf" },
+    { id: "badge-50", title: "50 entradas", requirement: 50, description: "Registra 50 entradas para desbloquear esta medalla", defaultColor: "#b3d9ff" },
+    { id: "badge-100", title: "100 entradas", requirement: 100, description: "Alcanza 100 entradas y serás recompensado", defaultColor: "#a8e6cf" },
+    { id: "badge-500", title: "500 entradas", requirement: 500, description: "Hito épico: 500 entradas, ¡muy bien hecho!", defaultColor: "#b3d9ff" },
 ];
 
 /* Helpers */
@@ -110,8 +119,6 @@ export default function BadgePage() {
 
     // fallback when useAuth provides nothing
     const entriesCount: number = authCtx?.user?.entriesCount ?? 0;
-    const streakDays: number = authCtx?.user?.streakDays ?? 0;
-
     // local state for icons (data URLs)
     const [icons, setIcons] = useState<Record<string, string>>(() => {
         const initial: Record<string, string> = {};
@@ -147,7 +154,7 @@ export default function BadgePage() {
     useEffect(() => {
         const nowUnlocked: Record<string, boolean> = {};
         for (const b of BADGES) {
-            const isUnlocked = (entriesCount >= b.requirement) || (streakDays >= b.requirement);
+            const isUnlocked = (entriesCount >= b.requirement);
             nowUnlocked[b.id] = isUnlocked;
             const wasUnlocked = !!prevUnlockedRef.current[b.id];
             if (isUnlocked && !wasUnlocked) {
@@ -159,17 +166,17 @@ export default function BadgePage() {
         }
         prevUnlockedRef.current = nowUnlocked;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [entriesCount, streakDays]);
+    }, [entriesCount]);
 
     return (
         <div style={{ padding: 20 }}>
             <MainHeader />
 
             <section style={{ marginTop: 16 }}>
-                <h2 style={{ fontWeight: 800, fontSize: 20, color: "#111827", marginBottom: 8 }}>Logros</h2>
+                <h1 style={{ fontWeight: 800, fontSize: 20, color: "#111827", marginBottom: 8 }}>Logros</h1>
                 <p style={{ color: "#374151", marginBottom: 12 }}>
                     Las medallas se desbloquean cuando llegues a la cantidad de entradas indicada.
-                    Tus estadísticas actuales: <strong>{entriesCount}</strong> entradas, <strong>{streakDays}</strong> días de racha.
+                    Tus estadísticas actuales: <strong>{entriesCount}</strong> entradas.
                 </p>
 
                 {congrats && (
@@ -180,7 +187,7 @@ export default function BadgePage() {
 
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                     {BADGES.map((b) => {
-                        const unlocked = (entriesCount >= b.requirement) || (streakDays >= b.requirement);
+                        const unlocked = (entriesCount >= b.requirement);
                         const icon = icons[b.id] ?? createDefaultSvgDataUrl(String(b.requirement), b.defaultColor);
 
                         return <BadgeCard key={b.id} spec={b} icon={icon} unlocked={unlocked} />;
