@@ -1,43 +1,20 @@
 'use server';
 
-/**
- * @fileOverview A flow to suggest personalized tasks for patients based on their mood, diary entries, and treatment plan.
- *
- * - suggestPersonalizedTasks - A function that suggests personalized tasks.
- * - SuggestPersonalizedTasksInput - The input type for the suggestPersonalizedTasks function.
- * - SuggestPersonalizedTasksOutput - The return type for the suggestPersonalizedTasks function.
- */
-
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 
 const SuggestPersonalizedTasksInputSchema = z.object({
-  mood: z
-    .string()
-    .describe('The current mood of the patient (e.g., happy, sad, anxious).'),
-  diaryEntry: z.string().describe('A diary entry describing the patient thoughts and feelings.'),
-  treatmentPlan: z
-    .string()
-    .describe('The treatment plan for the patient, including goals and strategies.'),
-  previousTasks: z
-    .array(z.string())
-    .optional()
-    .describe('A list of tasks already suggested to the patient in the past.'),
+  mood: z.string().describe('Estado emocional actual del paciente.'),
+  diaryEntry: z.string().describe('Entrada de diario más reciente.'),
+  treatmentPlan: z.string().describe('Contexto clínico/psicoeducativo proveniente de RAG.'),
+  previousTasks: z.array(z.string()).optional().describe('Tareas ya sugeridas o pendientes (no repetir).'),
 });
-export type SuggestPersonalizedTasksInput = z.infer<
-  typeof SuggestPersonalizedTasksInputSchema
->;
+export type SuggestPersonalizedTasksInput = z.infer<typeof SuggestPersonalizedTasksInputSchema>;
 
 const SuggestPersonalizedTasksOutputSchema = z.object({
-  tasks: z
-    .array(z.string())
-    .describe(
-      'A list of personalized tasks tailored to the patient current state and treatment plan.'
-    ),
+  tasks: z.array(z.string()).describe('3 tareas personalizadas.'),
 });
-export type SuggestPersonalizedTasksOutput = z.infer<
-  typeof SuggestPersonalizedTasksOutputSchema
->;
+export type SuggestPersonalizedTasksOutput = z.infer<typeof SuggestPersonalizedTasksOutputSchema>;
 
 export async function suggestPersonalizedTasks(
   input: SuggestPersonalizedTasksInput
@@ -47,21 +24,28 @@ export async function suggestPersonalizedTasks(
 
 const prompt = ai.definePrompt({
   name: 'suggestPersonalizedTasksPrompt',
-  input: {schema: SuggestPersonalizedTasksInputSchema},
-  output: {schema: SuggestPersonalizedTasksOutputSchema},
-  prompt: `You are an AI assistant designed to help patients with eating disorders by suggesting personalized tasks.
+  input: { schema: SuggestPersonalizedTasksInputSchema },
+  output: { schema: SuggestPersonalizedTasksOutputSchema },
+  prompt: `Eres un asistente de TCC para TCA. Devuelve EXACTAMENTE un JSON array de 3 strings (sin texto extra).
 
-  Consider the patient's current mood, diary entry, and treatment plan to suggest tasks that will help them in their recovery.
-  Avoid suggesting tasks that have already been suggested in the past.
+Datos del paciente:
+- Estado/Mood: {{{mood}}}
+- Diario: {{{diaryEntry}}}
 
-  Patient Mood: {{{mood}}}
-  Diary Entry: {{{diaryEntry}}}
-  Treatment Plan: {{{treatmentPlan}}}
-  Previous Tasks: {{#if previousTasks}}{{{previousTasks}}}{{else}}None{{/if}}
+Contexto clínico (literatura / guías) para inspirar tareas:
+{{{treatmentPlan}}}
 
-  Suggest 3-5 tasks that the patient can do today to support their recovery.  The tasks should be specific, actionable, and relevant to the patient's current situation and treatment plan.  Do not be conversational; return the tasks as a JSON array of strings.
-  Tasks:
-  `,
+No repitas ni parafrasees tareas que ya existen:
+{{#if previousTasks}}{{{previousTasks}}}{{else}}[]{{/if}}
+
+Criterios de las 3 tareas:
+- Conductuales, pequeñas, realizables hoy o esta semana.
+- Específicas, medibles, y con duración o criterio de término (p.ej., “10 min respiración 4-7-8”).
+- Relacionadas con TCA: regularidad alimentaria, autorregistro, exposición gradual, reestructuración cognitiva, habilidades de afrontamiento, autocompasión.
+- Tono empático y neutro (sin “tú deberías”).
+- Español neutro.
+- Formato de salida: SOLO JSON array de strings.
+`,
 });
 
 const suggestPersonalizedTasksFlow = ai.defineFlow(
@@ -70,8 +54,8 @@ const suggestPersonalizedTasksFlow = ai.defineFlow(
     inputSchema: SuggestPersonalizedTasksInputSchema,
     outputSchema: SuggestPersonalizedTasksOutputSchema,
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    const { output } = await prompt(input);
     return output!;
   }
 );

@@ -182,7 +182,8 @@ const Tasks = ({ user }: { user: User | null }) => {
       });
 
       if (!response.ok) {
-        throw new Error('API response was not successful.');
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.error || `API ${response.status} not ok`);
       }
 
       toast({ title: "New tasks generated", description: "New tasks have been added to your list." });
