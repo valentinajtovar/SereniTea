@@ -2,23 +2,16 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuth } from '@/hooks/use-auth';
+import { Paciente } from '@/types';
 
-// 1. Definir el tipo para los datos del paciente (actualizado)
-type Paciente = {
-  _id: string;
-  nombre: string;
-  apellido: string;
-  correo: string;
-} | null;
-
-// 2. Crear el contexto
-type UserContextType = { paciente: Paciente, loading: boolean };
+// 1. Crear el contexto
+type UserContextType = { paciente: Paciente | null, loading: boolean };
 const UserContext = createContext<UserContextType>({ paciente: null, loading: true });
 
-// 3. Crear el componente Provider con lógica mejorada
+// 2. Crear el componente Provider con lógica mejorada
 export function UserProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [paciente, setPaciente] = useState<Paciente>(null);
+  const [paciente, setPaciente] = useState<Paciente | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,13 +24,14 @@ export function UserProvider({ children }: { children: ReactNode }) {
     async function fetchPaciente() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/pacientes?uid=${user.uid}`);
+        // Corregido: Usar firebaseUid en lugar de uid
+        const res = await fetch(`/api/pacientes?firebaseUid=${user.uid}`);
         
         // Si la respuesta es OK (200), procesamos los datos.
         if (res.ok) {
           const data = await res.json();
-          // La API devuelve { success: true, data: paciente }
-          setPaciente(data.data || null);
+          // Corregido: La API ahora devuelve el objeto del paciente directamente
+          setPaciente(data);
         } else {
           // Si la respuesta es 404, significa que el paciente no existe aún.
           // Esto es un estado válido, no un error.
@@ -66,5 +60,5 @@ export function UserProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// 4. Crear un hook para consumir el contexto
+// 3. Crear un hook para consumir el contexto
 export const useUser = () => useContext(UserContext);

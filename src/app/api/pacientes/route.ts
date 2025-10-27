@@ -5,23 +5,27 @@ import { Paciente } from '@/models/Paciente';
 
 export async function GET(req: NextRequest) {
   try {
-    const uid = req.nextUrl.searchParams.get('uid');
-
-    if (!uid) {
-      return NextResponse.json({ success: false, error: 'UID de usuario no proporcionado' }, { status: 400 });
-    }
-
     await dbConnect();
 
-    const paciente = await Paciente.findOne({ uid: uid });
+    const { searchParams } = new URL(req.url);
+    const firebaseUid = searchParams.get('firebaseUid');
 
-    if (!paciente) {
-      return NextResponse.json({ success: false, error: 'Paciente no encontrado' }, { status: 404 });
+    if (!firebaseUid) {
+      return NextResponse.json({ error: { message: 'firebaseUid is required' } }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, data: paciente }, { status: 200 });
-  } catch (error) {
-    console.error('Error al buscar paciente:', error);
-    return NextResponse.json({ success: false, error: 'Error del servidor' }, { status: 500 });
+    // Usamos findOne para obtener un único paciente
+    const paciente = await Paciente.findOne({ firebaseUid });
+
+    // Si no se encuentra el paciente, devolvemos un 404
+    if (!paciente) {
+      return NextResponse.json({ error: { message: 'Paciente no encontrado' } }, { status: 404 });
+    }
+
+    // Devolvemos el objeto del paciente
+    return NextResponse.json(paciente, { status: 200 });
+
+  } catch (error: any) {
+    return NextResponse.json({ error: { message: 'Internal Server Error', details: error.message } }, { status: 500 });
   }
 }

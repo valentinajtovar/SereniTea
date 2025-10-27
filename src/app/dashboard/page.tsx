@@ -26,7 +26,7 @@ import JournalEntries from '@/components/dashboard/journal-entries';
 import MoodTracker from '@/components/dashboard/mood-tracker'; 
 import MainHeader from '@/components/dashboard/main-header';
 import QuickTip from '@/components/dashboard/quick-tip';
-import { type JournalEntry } from '@/types';
+import { type JournalEntry, type Paciente } from '@/types';
 
 const emotions = {
   Alegria: { emoji: '😊', subEmotions: ['Feliz', 'Emocionado', 'Orgulloso', 'Optimista'] },
@@ -48,6 +48,7 @@ const getTodayDateString = () => new Date().toISOString().split('T')[0];
 export default function PatientDashboard() {
   const [showFullForm, setShowFullForm] = useState(true);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [patientData, setPatientData] = useState<Paciente | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [isLoadingEntries, setIsLoadingEntries] = useState(true);
@@ -62,10 +63,7 @@ export default function PatientDashboard() {
   const fetchJournalEntries = useCallback(async (user: User) => {
     setIsLoadingEntries(true);
     try {
-      const token = await user.getIdToken();
-      const response = await fetch('/api/journal', {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
+      const response = await fetch(`/api/journal?firebaseUid=${user.uid}`);
       if (!response.ok) throw new Error('Failed to fetch entries');
       const data = await response.json();
       setJournalEntries(data);
@@ -77,14 +75,36 @@ export default function PatientDashboard() {
     }
   }, []);
 
+  const fetchPatientData = useCallback(async (user: User) => {
+    if (!user) return;
+    try {
+      const response = await fetch(`/api/pacientes?firebaseUid=${user.uid}`);
+      if (response.ok) {
+        const data = await response.json();
+        setPatientData(data);
+      } else if (response.status === 404) {
+        setPatientData(null); // Paciente no encontrado, es un estado válido.
+      } else {
+        // Otro tipo de error, aquí sí lanzamos la excepción.
+        throw new Error('Failed to fetch patient data');
+      }
+    } catch (error) {
+      console.error("Error fetching patient data:", error);
+      toast({ title: "Error", description: "No se pudieron cargar los datos del paciente.", variant: "destructive" });
+      setPatientData(null); // Asegurarse de limpiar los datos en caso de error
+    }
+  }, []);
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       setCurrentUser(user);
       setIsAuthLoading(false);
       if (user) {
         fetchJournalEntries(user);
+        fetchPatientData(user);
       } else {
         setJournalEntries([]);
+        setPatientData(null);
       }
     });
     const today = getTodayDateString();
@@ -92,17 +112,18 @@ export default function PatientDashboard() {
     if (storedDate === today) setShowFullForm(false);
     
     return () => unsubscribe();
-  }, [fetchJournalEntries]);
+  }, [fetchJournalEntries, fetchPatientData]);
 
   const onSubmit = async (data: z.infer<typeof dailyEntrySchema>) => {
-     if (!currentUser) {
-      toast({ title: "Error", description: "Sesión no encontrada. Recarga la página.", variant: "destructive" });
+     if (!currentUser || !patientData) {
+      toast({ title: "Error", description: "Sesión o datos de paciente no encontrados. Recarga la página.", variant: "destructive" });
       return;
     }
 
     try {
-      const token = await currentUser.getIdToken();
       const newEntryPayload = {
+        firebaseUid: currentUser.uid,
+        patientId: patientData._id,
         mainEmotion: data.mainEmotion,
         subEmotion: data.subEmotion,
         journal: data.journal,
@@ -113,14 +134,13 @@ export default function PatientDashboard() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(newEntryPayload),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save entry');
+        throw new Error(errorData.error.message || 'Failed to save entry');
       }
 
       const savedEntry = await response.json();
@@ -150,6 +170,7 @@ export default function PatientDashboard() {
   );
 
   const displayName = currentUser?.displayName;
+  const firstName = displayName ? displayName.split(' ')[0] : '';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -159,7 +180,7 @@ export default function PatientDashboard() {
           
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-gray-800">
-              Bienvenido de nuevo{displayName ? `, ${displayName}` : ''}
+              Hola{firstName ? `, ${firstName}` : ''}
             </h1>
             <p className="text-gray-600">¿Listo para continuar tu viaje? Estamos aquí contigo.</p>
           </div>

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth'; // Changed import
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
@@ -58,13 +58,12 @@ export default function RegisterPage() {
     setIsRegisterLoading(true);
 
     try {
-      // The backend will now handle user creation in Firebase and MongoDB
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(values), // Send only form values
+        body: JSON.stringify(values),
       });
 
       if (!response.ok) {
@@ -72,7 +71,6 @@ export default function RegisterPage() {
         throw new Error(errorData.error?.message || 'Something went wrong during registration.');
       }
 
-      // After successful registration in the backend, sign in the user on the client
       await signInWithEmailAndPassword(auth, values.email, values.password);
 
       toast({
@@ -80,7 +78,9 @@ export default function RegisterPage() {
         description: "Tu cuenta ha sido creada. Ahora serás redirigido.",
       });
 
-      router.push('/login'); // Redirect to login or dashboard
+      // Corregido: Redirigir al dashboard después del registro
+      router.push('/dashboard');
+
     } catch (error: any) {
       console.error("Registration error:", error);
       toast({ 
