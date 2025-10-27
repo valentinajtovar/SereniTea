@@ -42,6 +42,15 @@ export function MainNav() {
       >
         Tareas
       </Link>
+      <Link
+        href="/dashboard/badges"
+        className={cn(
+          'text-sm font-medium transition-colors hover:text-primary',
+          pathname === '/dashboard/badges' ? 'text-foreground' : 'text-foreground/60'
+        )}
+      >
+        Logros
+      </Link>
     </nav>
   );
 }
