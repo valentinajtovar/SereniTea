@@ -1,3 +1,6 @@
 .next
 serviceAccountKey.json
 node_modules
+.env.local
+Literature
+data
