@@ -1,49 +1,65 @@
 'use server';
 
 import { z } from 'zod';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { suggestCreativeActivities } from '@/ai/flows/suggest-creative-activities';
+import { db } from '@/lib/firebase-admin';
+import { revalidatePath } from 'next/cache';
 
-const registerPsychologistSchema = z.object({
-  fullName: z.string(),
-  email: z.string().email(),
-  specialization: z.string(),
-  bio: z.string(),
+// Esquema para validar las entradas de la acción del servidor
+const suggestActivitiesSchema = z.object({
+  mood: z.string().min(1, 'El estado de ánimo es obligatorio.'),
+  location: z.string().min(2, 'La ubicación es obligatoria.'),
 });
 
-export async function registerPsychologistAction(data: unknown) {
-  const result = registerPsychologistSchema.safeParse(data);
+/**
+ * Server Action para obtener sugerencias de actividades creativas.
+ * ... (código existente)
+ */
+export async function suggestActivitiesAction(mood: string, location: string) {
+  const validationResult = suggestActivitiesSchema.safeParse({ mood, location });
 
-  if (!result.success) {
-    return { error: 'Invalid data' };
+  if (!validationResult.success) {
+    const errorMessage = validationResult.error.errors.map(e => e.message).join(', ');
+    return { error: `Entrada inválida: ${errorMessage}` };
   }
 
-  const { email, fullName, specialization, bio } = result.data;
+  const { mood: validatedMood, location: validatedLocation } = validationResult.data;
 
   try {
-    // Note: This is a simplified example. In a real application, you'd want
-    // to handle password creation more securely, perhaps by sending a
-    // password reset/setup email.
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const userCredential = await createUserWithEmailAndPassword(auth, email, tempPassword);
-    const user = userCredential.user;
-
-    await setDoc(doc(db, 'psychologists', user.uid), {
-      fullName,
-      email,
-      specialization,
-      bio,
-      approved: false, // Psychologists need to be manually approved
+    const suggestions = await suggestCreativeActivities({
+      mood: validatedMood,
+      location: validatedLocation,
     });
+    return suggestions;
+  } catch (error) {
+    console.error('Error calling suggestCreativeActivities flow:', error);
+    return { error: 'No se pudieron obtener las sugerencias. Por favor, inténtalo de nuevo más tarde.' };
+  }
+}
 
-    // In a real app, you would also trigger an email to the psychologist
-    // with their login details and a prompt to change their password.
+/**
+ * Server Action para eliminar una tarea de Firestore.
+ * @param taskId El ID del documento de la tarea a eliminar.
+ * @returns Un objeto indicando el éxito o un objeto de error.
+ */
+export async function deleteTaskAction(taskId: string) {
+  if (!taskId || typeof taskId !== 'string') {
+    return { error: 'ID de tarea inválido.' };
+  }
+
+  try {
+    console.log(`Intentando eliminar la tarea con ID: ${taskId}`);
+    await db.collection('tareas').doc(taskId).delete();
+    console.log(`Tarea con ID: ${taskId} eliminada con éxito.`);
+
+    // Revalida la ruta raíz para refrescar la lista de tareas.
+    // Si tus tareas están en otra página (ej. /dashboard), cambia '/' por esa ruta.
+    revalidatePath('/');
 
     return { success: true };
 
-  } catch (error: any) {
-    console.error('Error registering psychologist:', error);
-    return { error: error.message };
+  } catch (error) {
+    console.error('Error al eliminar la tarea:', error);
+    return { error: 'No se pudo eliminar la tarea. Por favor, inténtalo de nuevo.' };
   }
 }

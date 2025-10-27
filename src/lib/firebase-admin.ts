@@ -1,20 +1,28 @@
 import admin from 'firebase-admin';
 
-// This approach mirrors the one used in `scripts/seed-tasks.js` by loading the service account key directly.
-// The path is relative from this file's location in `src/lib` to the project root where `serviceAccountKey.json` should be.
 try {
-  const serviceAccount = require('../../serviceAccountKey.json');
-
   if (!admin.apps.length) {
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      // This can fail if the JSON is malformed
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    } else {
+      // This will fail on Vercel, but is intended for local dev
+      serviceAccount = require('../../serviceAccountKey.json');
+    }
+
     admin.initializeApp({
       credential: admin.credential.cert(serviceAccount),
     });
   }
 } catch (error) {
   console.error(
-    'Firebase Admin SDK initialization error. Please make sure your `serviceAccountKey.json` file is in the root of your project.',
+    'CRITICAL: Firebase Admin SDK initialization error. This is likely due to a malformed or missing FIREBASE_SERVICE_ACCOUNT_JSON environment variable in Vercel, or a missing serviceAccountKey.json file locally.',
     error
   );
+  // Re-throwing the error to ensure the build process fails loudly and clearly.
+  // This prevents downstream errors like "The default Firebase app does not exist".
+  throw error;
 }
 
 const db = admin.firestore();
