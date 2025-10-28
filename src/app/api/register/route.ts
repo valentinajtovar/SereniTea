@@ -14,16 +14,17 @@ const formSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
+  const body = await req.json();
+  const parsedData = formSchema.safeParse(body);
+
+  if (!parsedData.success) {
+    return NextResponse.json({ error: { message: "Validation failed", details: parsedData.error.errors } }, { status: 400 });
+  }
+
+  const { name, email, birthdate, anonymousName, password } = parsedData.data;
+  let uid: string | undefined = undefined;
+
   try {
-    const body = await req.json();
-    const parsedData = formSchema.safeParse(body);
-
-    if (!parsedData.success) {
-      return NextResponse.json({ error: { message: "Validation failed", details: parsedData.error.errors } }, { status: 400 });
-    }
-
-    const { name, email, birthdate, anonymousName, password } = parsedData.data;
-
     // 1. Create user in Firebase Authentication
     const userRecord = await admin.auth().createUser({
       email: email,
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
       displayName: name,
     });
 
-    const { uid } = userRecord;
+    uid = userRecord.uid;
 
     // 2. Connect to MongoDB
     await dbConnect();
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Patient registered successfully', uid: uid }, { status: 201 });
 
   } catch (error: any) {
+    // If user was created in Firebase but patient creation in MongoDB failed, delete the Firebase user
+    if (uid) {
+      await admin.auth().deleteUser(uid);
+    }
+    
     // Check for specific Firebase errors
     if (error.code === 'auth/email-already-exists') {
       return NextResponse.json({ error: { message: 'The email address is already in use by another account.' } }, { status: 409 });
