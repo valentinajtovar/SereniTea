@@ -4,8 +4,7 @@ import "./globals.css";
 
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthProvider } from "@/hooks/use-auth";
-import { UserProvider } from "@/hooks/use-user";
+import { AuthProvider } from "@/context/auth-context";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 const lexend = Lexend({ subsets: ["latin"], variable: "--font-headline" });
@@ -35,9 +34,7 @@ export default function RootLayout({
         )}
       >
         <AuthProvider>
-          <UserProvider>
-            {children}
-          </UserProvider>
+          {children}
         </AuthProvider>
         <Toaster />
       </body>
