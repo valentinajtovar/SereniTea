@@ -1,9 +1,11 @@
+
 'use server';
 
 import { z } from 'zod';
 import { suggestCreativeActivities } from '@/ai/flows/suggest-creative-activities';
-import { db } from '@/lib/firebase-admin';
+import clientPromise from '@/lib/mongodb';
 import { revalidatePath } from 'next/cache';
+import { ObjectId } from 'mongodb';
 
 // Esquema para validar las entradas de la acción del servidor
 const suggestActivitiesSchema = z.object({
@@ -13,7 +15,7 @@ const suggestActivitiesSchema = z.object({
 
 /**
  * Server Action para obtener sugerencias de actividades creativas.
- * ... (código existente)
+ * Esta acción se conecta a una IA para obtener sugerencias y las guarda.
  */
 export async function suggestActivitiesAction(mood: string, location: string) {
   const validationResult = suggestActivitiesSchema.safeParse({ mood, location });
@@ -26,40 +28,60 @@ export async function suggestActivitiesAction(mood: string, location: string) {
   const { mood: validatedMood, location: validatedLocation } = validationResult.data;
 
   try {
-    const suggestions = await suggestCreativeActivities({
-      mood: validatedMood,
-      location: validatedLocation,
-    });
-    return suggestions;
+    console.log('Obteniendo sugerencias de la IA...');
+    const suggestions = await suggestCreativeActivities(validatedMood, validatedLocation);
+
+    if (!suggestions || suggestions.length === 0) {
+      return { error: 'No se pudieron generar sugerencias. Inténtalo de nuevo.' };
+    }
+
+    // Conectar a MongoDB y guardar las sugerencias
+    const client = await clientPromise;
+    const db = client.db();
+    const suggestionsCollection = db.collection('suggested_activities');
+
+    // Podríamos añadir el ID de usuario aquí si fuera necesario
+    const result = await suggestionsCollection.insertMany(
+      suggestions.map(suggestion => ({ ...suggestion, mood: validatedMood, location: validatedLocation, createdAt: new Date() }))
+    );
+    
+    console.log(`${result.insertedCount} sugerencias guardadas en la base de datos.`);
+
+    // Revalida la ruta para que los nuevos datos se muestren si es necesario
+    revalidatePath('/dashboard'); // O cualquier otra página que muestre estas sugerencias
+
+    return { success: true, suggestions };
+
   } catch (error) {
-    console.error('Error calling suggestCreativeActivities flow:', error);
-    return { error: 'No se pudieron obtener las sugerencias. Por favor, inténtalo de nuevo más tarde.' };
+    console.error('Error en la acción del servidor:', error);
+    return { error: 'Ocurrió un error en el servidor al procesar tu solicitud.' };
   }
 }
 
 /**
- * Server Action para eliminar una tarea de Firestore.
- * @param taskId El ID del documento de la tarea a eliminar.
- * @returns Un objeto indicando el éxito o un objeto de error.
+ * Server Action para eliminar una tarea.
  */
 export async function deleteTaskAction(taskId: string) {
-  if (!taskId || typeof taskId !== 'string') {
-    return { error: 'ID de tarea inválido.' };
-  }
-
   try {
-    console.log(`Intentando eliminar la tarea con ID: ${taskId}`);
-    await db.collection('tareas').doc(taskId).delete();
-    console.log(`Tarea con ID: ${taskId} eliminada con éxito.`);
+    if (!ObjectId.isValid(taskId)) {
+      return { error: 'El ID de la tarea no es válido.' };
+    }
 
-    // Revalida la ruta raíz para refrescar la lista de tareas.
-    // Si tus tareas están en otra página (ej. /dashboard), cambia '/' por esa ruta.
-    revalidatePath('/');
+    const client = await clientPromise;
+    const db = client.db();
+    const tasksCollection = db.collection('tasks');
 
+    const result = await tasksCollection.deleteOne({ _id: new ObjectId(taskId) });
+
+    if (result.deletedCount === 0) {
+      return { error: 'No se pudo encontrar la tarea para eliminar.' };
+    }
+
+    revalidatePath('/dashboard/tasks');
     return { success: true };
 
   } catch (error) {
     console.error('Error al eliminar la tarea:', error);
-    return { error: 'No se pudo eliminar la tarea. Por favor, inténtalo de nuevo.' };
+    return { error: 'Ocurrió un error en el servidor al eliminar la tarea.' };
   }
 }
