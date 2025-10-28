@@ -73,7 +73,7 @@ export default function PatientDashboard() {
     } finally {
       setIsLoadingEntries(false);
     }
-  }, []);
+  }, [toast]);
 
   const fetchPatientData = useCallback(async (user: User) => {
     if (!user) return;
@@ -83,17 +83,17 @@ export default function PatientDashboard() {
         const data = await response.json();
         setPatientData(data);
       } else if (response.status === 404) {
-        setPatientData(null); // Paciente no encontrado, es un estado válido.
+        setPatientData(null); 
+        toast({ title: "Datos Incompletos", description: "No se encontraron los datos del paciente. Por favor, regístrate de nuevo para sincronizar tu cuenta.", variant: "destructive", duration: 9000 });
       } else {
-        // Otro tipo de error, aquí sí lanzamos la excepción.
         throw new Error('Failed to fetch patient data');
       }
     } catch (error) {
       console.error("Error fetching patient data:", error);
       toast({ title: "Error", description: "No se pudieron cargar los datos del paciente.", variant: "destructive" });
-      setPatientData(null); // Asegurarse de limpiar los datos en caso de error
+      setPatientData(null);
     }
-  }, []);
+  }, [toast]);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -156,6 +156,15 @@ export default function PatientDashboard() {
       toast({ title: "Error al guardar", description: error.message || "No se pudo guardar tu entrada.", variant: "destructive" });
     }
   };
+  
+  const handleEntryUpdate = (updatedEntry: JournalEntry) => {
+    setJournalEntries(prevEntries => prevEntries.map(entry => entry._id === updatedEntry._id ? updatedEntry : entry));
+  };
+
+  const handleEntryDelete = (deletedEntryId: string) => {
+    setJournalEntries(prevEntries => prevEntries.filter(entry => entry._id !== deletedEntryId));
+  };
+
 
   const handleAddNewEntry = () => {
     setShowFullForm(true);
@@ -243,7 +252,12 @@ export default function PatientDashboard() {
                 )}
               </div>
 
-              <JournalEntries entries={journalEntries.slice(0, 5)} isLoading={isLoadingEntries} />
+              <JournalEntries 
+                entries={journalEntries.slice(0, 5)} 
+                isLoading={isLoadingEntries} 
+                onEntryUpdate={handleEntryUpdate}
+                onEntryDelete={handleEntryDelete}
+              />
 
             </div>
 

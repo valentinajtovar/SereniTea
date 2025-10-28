@@ -1,12 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { MoreHorizontal, Trash2, Edit, CheckCircle2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
-import { db } from '@/lib/firebase-client';
 import { useToast } from '@/hooks/use-toast';
 import { type JournalEntry } from '@/types';
 
@@ -38,14 +36,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from '@/components/ui/textarea';
 
-const formatDetailedDate = (timestamp: Timestamp) => {
-  const date = timestamp.toDate();
-  const timeString = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-  return `${date.toLocaleDateString('es-ES')} a las ${timeString}`;
+const formatDetailedDate = (dateString: string | Date) => {
+    const date = new Date(dateString);
+    const timeString = date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return `${date.toLocaleDateString('es-ES')} a las ${timeString}`;
 };
 
-// Make this a presentational component
-const JournalEntries = ({ entries, isLoading }: { entries: JournalEntry[], isLoading: boolean }) => {
+
+const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete }: { entries: JournalEntry[], isLoading: boolean, onEntryUpdate: Function, onEntryDelete: Function }) => {
   const { toast } = useToast();
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -62,7 +60,10 @@ const JournalEntries = ({ entries, isLoading }: { entries: JournalEntry[], isLoa
     if (!selectedEntry) return;
 
     try {
-      await deleteDoc(doc(db, "journal_entries", selectedEntry.id));
+      const response = await fetch(`/api/journal?id=${selectedEntry._id}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete entry');
+      
+      onEntryDelete(selectedEntry._id);
       toast({ title: "Entrada eliminada", description: "Tu entrada del diario ha sido borrada permanentemente." });
     } catch (error) {
       toast({ title: "Error", description: "No se pudo eliminar la entrada.", variant: "destructive" });
@@ -80,10 +81,17 @@ const JournalEntries = ({ entries, isLoading }: { entries: JournalEntry[], isLoa
   const handleConfirmEdit = async () => {
     if (!selectedEntry || !editText.trim()) return;
 
-    const entryRef = doc(db, "journal_entries", selectedEntry.id);
-
     try {
-      await updateDoc(entryRef, { journal: editText });
+      const response = await fetch(`/api/journal?id=${selectedEntry._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ journal: editText }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update entry');
+
+      const updatedEntry = await response.json();
+      onEntryUpdate(updatedEntry);
       toast({ title: "Entrada actualizada", action: <CheckCircle2 className="text-green-500" /> });
     } catch (error) {
         toast({ title: "Error", description: "No se pudo actualizar la entrada.", variant: "destructive" });
@@ -104,7 +112,7 @@ const JournalEntries = ({ entries, isLoading }: { entries: JournalEntry[], isLoa
              <p className="text-gray-500 italic">Cargando entradas...</p>
           ) : entries.length > 0 ? (
             entries.map(entry => (
-              <div key={entry.id} className="border-b border-purple-100 pb-3 last:border-b-0 group">
+              <div key={entry._id} className="border-b border-purple-100 pb-3 last:border-b-0 group">
                 <div className="flex justify-between items-start">
                     <div className="min-w-0 flex-grow">
                         <p className="text-sm font-semibold text-gray-800">

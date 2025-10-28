@@ -1,82 +1,100 @@
-'use strict';
 
-// IMPORTANTE:
-// 1. Instala las dependencias necesarias en la raíz de tu proyecto:
-//    npm install firebase-admin
-// 2. Descarga tu clave de servicio desde la consola de Firebase y guárdala como 'serviceAccountKey.json' en la raíz del proyecto.
-//    (Firebase Console > Configuración del proyecto > Cuentas de servicio > Generar nueva clave privada)
-// 3. CAMBIA EL 'USER_ID_TO_SEED' por el ID del usuario (UID) al que quieres asignarle las tareas.
-//    (Puedes encontrar el UID en Firebase Console > Authentication)
+require('dotenv').config({ path: './.env.local' });
+const { MongoClient } = require('mongodb');
+const mongoose = require('mongoose');
 
-const admin = require('firebase-admin');
-// Asegúrate de que la ruta al archivo serviceAccountKey.json sea correcta.
-const serviceAccount = require('../serviceAccountKey.json'); 
+const tasks = [
+    {
+      "title": "Escribe en tu diario",
+      "description": "Dedica 15 minutos a escribir tus pensamientos y sentimientos.",
+      "category": "Autocuidado",
+      "type": "recurring",
+      "frequency": "daily",
+      "isCompleted": false,
+      "daysOfWeek": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    },
+    {
+      "title": "Meditación de 5 minutos",
+      "description": "Practica la atención plena con una breve meditación guiada.",
+      "category": "Mindfulness",
+      "type": "recurring",
+      "frequency": "daily",
+      "isCompleted": false,
+      "daysOfWeek": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes"]
+    },
+    {
+      "title": "Sal a caminar",
+      "description": "Da un paseo de 30 minutos al aire libre para despejar tu mente.",
+      "category": "Actividad Física",
+      "type": "recurring",
+      "frequency": "weekly",
+      "isCompleted": false,
+      "daysOfWeek": ["Lunes", "Miércoles", "Viernes"]
+    },
+    {
+      "title": "Establece una intención para el día",
+      "description": "Define una intención positiva para tu día al despertar.",
+      "category": "Mindfulness",
+      "type": "one-time",
+      "isCompleted": false
+    },
+    {
+      "title": "Practica la gratitud",
+      "description": "Escribe tres cosas por las que te sientas agradecido hoy.",
+      "category": "Autocuidado",
+      "type": "recurring",
+      "frequency": "daily",
+      "isCompleted": false,
+      "daysOfWeek": ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    },
+    {
+      "title": "Técnica de respiración 4-7-8",
+      "description": "Realiza tres ciclos de esta técnica para calmar la ansiedad.",
+      "category": "Técnicas de Relajación",
+      "type": "one-time",
+      "isCompleted": false
+    },
+    {
+      "title": "Organiza tu espacio",
+      "description": "Dedica 20 minutos a ordenar tu habitación o escritorio.",
+      "category": "Bienestar",
+      "type": "weekly",
+      "isCompleted": false,
+      "daysOfWeek": ["Sábado"]
+    }\n];
 
-// --- CONFIGURACIÓN --- //
-const USER_ID_TO_SEED = "REEMPLAZA_ESTO_CON_UN_USER_ID_REAL";
 
-// --- INICIALIZACIÓN DE FIREBASE --- //
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-const db = admin.firestore();
-
-// --- TAREAS DE EJEMPLO --- //
-const tasksToSeed = [
-  {
-    pacienteId: USER_ID_TO_SEED,
-    descripcion: "Escribe tres cosas por las que te sientas agradecido/a hoy, sin importar lo pequeñas que sean.",
-    estado: "pendiente",
-    asignadaPor: "Sistema",
-    fechaAsignacion: admin.firestore.Timestamp.fromDate(new Date()),
-    fechaDue: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)), // 2 días desde hoy
-  },
-  {
-    pacienteId: USER_ID_TO_SEED,
-    descripcion: "Sal a caminar 15 minutos al aire libre. Concéntrate en los sonidos y olores a tu alrededor.",
-    estado: "pendiente",
-    asignadaPor: "Sistema",
-    fechaAsignacion: admin.firestore.Timestamp.fromDate(new Date()),
-    fechaDue: admin.firestore.Timestamp.fromDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000)), // 3 días desde hoy
-  },
-  {
-    pacienteId: USER_ID_TO_SEED,
-    descripcion: "Dedica 5 minutos a una respiración profunda y consciente antes de dormir esta noche.",
-    estado: "completada",
-    asignadaPor: "Psicólogo",
-    fechaAsignacion: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)), // Hace 3 días
-    fechaDue: admin.firestore.Timestamp.fromDate(new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)), // Hace 2 días
-    feedback: {
-        utilidad: "muy_util",
-        dificultad: "facil",
-        comentario: "Me ayudó mucho a relajarme y dormir mejor de lo que esperaba.",
-        repetiria: true
-    }
-  }
-];
-
-// --- FUNCIÓN DE CARGA --- //
 async function seedTasks() {
-  if (USER_ID_TO_SEED === "REEMPLAZA_ESTO_CON_UN_USER_ID_REAL") {
-    console.error("\x1b[31m%s\x1b[0m", "[ERROR] Por favor, edita el script 'scripts/seed-tasks.js' y reemplaza 'USER_ID_TO_SEED' con un ID de usuario válido de Firebase Authentication.");
-    return;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.error("Error: MONGODB_URI no está definido en .env.local");
+    process.exit(1);
   }
 
-  const tasksCollection = db.collection('tareas');
-  
-  console.log(`Añadiendo ${tasksToSeed.length} tareas de ejemplo para el usuario ${USER_ID_TO_SEED}...`);
-  const batch = db.batch();
-  
-  tasksToSeed.forEach(task => {
-    const docRef = tasksCollection.doc(); // Firestore genera el ID automáticamente
-    batch.set(docRef, task);
-  });
-  
-  await batch.commit();
-  console.log("\x1b[32m%s\x1b[0m", "¡Éxito! Las tareas de ejemplo han sido añadidas a la base de datos.");
+  const client = new MongoClient(uri);
+
+  try {
+    await client.connect();
+    console.log("Conectado a MongoDB Atlas");
+
+    const database = client.db();
+    const tasksCollection = database.collection('tasks');
+
+    // Eliminar tareas existentes para evitar duplicados
+    await tasksCollection.deleteMany({});
+    console.log("Tareas existentes eliminadas.");
+
+    // Insertar nuevas tareas
+    const result = await tasksCollection.insertMany(tasks);
+    console.log(`${result.insertedCount} tareas han sido añadidas a la colección 'tasks'.`);
+
+  } catch (error) {
+    console.error("Error al cargar las tareas en la base de datos:", error);
+  } finally {
+    await client.close();
+    console.log("Conexión cerrada.");
+  }
 }
 
-seedTasks().catch(error => {
-  console.error("\x1b[31m%s\x1b[0m", "Ocurrió un error al cargar las tareas:", error);
-});
+seedTasks();
+
