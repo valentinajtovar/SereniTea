@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 import clientPromise from '@/lib/mongodb';
 
 /**
- * GET /api/tasks
- * Obtiene las tareas pendientes de un usuario específico desde la colección 'tareas' en MongoDB.
+ * GET /api/all-tasks
+ * Obtiene todas las tareas de un usuario específico desde la colección 'tareas' en MongoDB.
  * Se requiere el parámetro de consulta 'firebaseUid'.
  */
 export async function GET(request: Request) {
@@ -20,16 +20,15 @@ export async function GET(request: Request) {
     const db = client.db();
     const collection = db.collection('tareas');
 
-    // Filtrar por estado 'pendiente'
     const tasks = await collection
-      .find({ firebaseUid: firebaseUid, status: 'pendiente' })
-      .sort({ dueDate: 1 }) // Ordenar por fecha de vencimiento ascendente
+      .find({ firebaseUid: firebaseUid })
+      .sort({ dueDate: 1 })
       .toArray();
 
     return NextResponse.json(tasks, { status: 200 });
 
   } catch (error) {
-    console.error('Error al obtener las tareas:', error);
+    console.error('Error al obtener todas las tareas:', error);
     return NextResponse.json({ error: 'Error interno del servidor al obtener las tareas.' }, { status: 500 });
   }
 }

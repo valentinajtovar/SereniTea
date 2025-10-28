@@ -16,7 +16,7 @@ const taskSchema = z.object({
 
 /**
  * Server Action para añadir una nueva tarea desde las sugerencias.
- * Esta acción guarda la tarea en la colección 'taks'.
+ * Esta acción guarda la tarea en la colección 'tareas'.
  */
 export async function addTaskAction(taskData: { title: string; description?: string; firebaseUid: string; }) {
   const validationResult = taskSchema.safeParse(taskData);
@@ -49,8 +49,8 @@ export async function addTaskAction(taskData: { title: string; description?: str
       dueDate,
     };
 
-    // Guardar en la colección 'taks'
-    const result = await db.collection('taks').insertOne(newTask);
+    // Guardar en la colección 'tareas'
+    const result = await db.collection('tareas').insertOne(newTask);
 
     revalidatePath('/dashboard/tasks');
     revalidatePath('/dashboard');
@@ -65,7 +65,7 @@ export async function addTaskAction(taskData: { title: string; description?: str
 }
 
 /**
- * Server Action para eliminar una tarea de la colección 'taks'.
+ * Server Action para eliminar una tarea de la colección 'tareas'.
  */
 export async function deleteTaskAction(taskId: string) {
   try {
@@ -75,8 +75,8 @@ export async function deleteTaskAction(taskId: string) {
 
     const client = await clientPromise;
     const db = client.db();
-    // Eliminar de la colección 'taks'
-    const result = await db.collection('taks').deleteOne({ _id: new ObjectId(taskId) });
+    // Eliminar de la colección 'tareas'
+    const result = await db.collection('tareas').deleteOne({ _id: new ObjectId(taskId) });
 
     if (result.deletedCount === 0) {
       return { error: 'No se pudo encontrar la tarea para eliminar.' };

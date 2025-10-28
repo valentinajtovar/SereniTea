@@ -4,7 +4,7 @@ import { LogOut } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
-import { useUser } from '@/hooks/use-user';
+import { useAuth } from '@/context/auth-context';
 import { auth } from '@/lib/firebase-client';
 import { MainNav } from '@/components/dashboard/main-nav';
 import { MobileNav } from '@/components/dashboard/mobile-nav';
@@ -13,10 +13,10 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 
 export default function MainHeader() {
-  const { userProfile } = useUser();
+  const { user } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const displayName = userProfile?.nombre_completo || 'Usuario';
+  const displayName = user?.displayName || 'Usuario';
 
   const handleSignOut = async () => {
     try {
