@@ -26,6 +26,7 @@ import JournalEntries from '@/components/dashboard/journal-entries';
 import MoodTracker from '@/components/dashboard/mood-tracker'; 
 import MainHeader from '@/components/dashboard/main-header';
 import QuickTip from '@/components/dashboard/quick-tip';
+import RecommendedTasks from '@/components/dashboard/RecommendedTasks'; // Importado
 import { type JournalEntry, type Paciente } from '@/types';
 
 const emotions = {
@@ -73,7 +74,7 @@ export default function PatientDashboard() {
     } finally {
       setIsLoadingEntries(false);
     }
-  }, [toast]);
+  }, []);
 
   const fetchPatientData = useCallback(async (user: User) => {
     if (!user) return;
@@ -93,7 +94,7 @@ export default function PatientDashboard() {
       toast({ title: "Error", description: "No se pudieron cargar los datos del paciente.", variant: "destructive" });
       setPatientData(null);
     }
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
@@ -165,7 +166,6 @@ export default function PatientDashboard() {
     setJournalEntries(prevEntries => prevEntries.filter(entry => entry._id !== deletedEntryId));
   };
 
-
   const handleAddNewEntry = () => {
     setShowFullForm(true);
     form.reset();
@@ -197,6 +197,10 @@ export default function PatientDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             
             <div className="lg:col-span-2 space-y-8">
+
+              {/* Tareas Recomendadas Añadidas Aquí */}
+              <RecommendedTasks entries={journalEntries} />
+
                <div className="p-8 bg-white rounded-2xl shadow-lg">
                 <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>
                 <p className="text-gray-600 mb-6">Tómate un momento para conectar contigo. ¿Cómo te sientes hoy?</p>
