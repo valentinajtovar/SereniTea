@@ -27,11 +27,12 @@ export interface Task {
 
 // --- Tipos para Diario ---
 
-// Describe la estructura de una entrada del diario en Firestore
+// Describe la estructura de una entrada del diario en MongoDB
 export interface JournalEntry {
-  id: string;
-  userId: string;
-  createdAt: Timestamp;
+  _id: string; // Changed from id
+  firebaseUid: string; // Changed from userId
+  patientId: string; // Added patientId reference
+  createdAt: string; // Changed from Timestamp to string (ISO date)
   mainEmotion: string;
   subEmotion: string;
   journal: string;

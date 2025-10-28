@@ -5,7 +5,7 @@ import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 
 import { auth } from '@/lib/firebase-client';
-import { useAuth } from '@/hooks/use-auth';
+import { useAuth } from '@/context/auth-context';
 import {
   DropdownMenu,
   DropdownMenuContent,

@@ -1,65 +1,131 @@
+
 'use server';
 
 import { z } from 'zod';
 import { suggestCreativeActivities } from '@/ai/flows/suggest-creative-activities';
-import { db } from '@/lib/firebase-admin';
+import clientPromise from '@/lib/mongodb';
 import { revalidatePath } from 'next/cache';
+import { ObjectId } from 'mongodb';
 
-// Esquema para validar las entradas de la acción del servidor
+// Esquema para la nueva tarea
+const taskSchema = z.object({
+  title: z.string().min(1, 'El título es obligatorio.'),
+  description: z.string().optional(),
+  firebaseUid: z.string().min(1, 'El ID de usuario de Firebase es obligatorio.')
+});
+
+/**
+ * Server Action para añadir una nueva tarea desde las sugerencias.
+ * Esta acción guarda la tarea en la colección 'tareas'.
+ */
+export async function addTaskAction(taskData: { title: string; description?: string; firebaseUid: string; }) {
+  const validationResult = taskSchema.safeParse(taskData);
+
+  if (!validationResult.success) {
+    return { error: `Entrada inválida: ${validationResult.error.errors.map(e => e.message).join(', ')}` };
+  }
+
+  const { title, description, firebaseUid } = validationResult.data;
+
+  try {
+    const client = await clientPromise;
+    const db = client.db();
+
+    const patient = await db.collection('pacientes').findOne({ firebaseUid });
+    if (!patient) {
+      return { error: 'Paciente no encontrado.' };
+    }
+
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 1);
+
+    const newTask = {
+      title,
+      description: description || '',
+      patientId: patient._id,
+      firebaseUid,
+      status: 'pendiente',
+      createdAt: new Date(),
+      dueDate,
+    };
+
+    // Guardar en la colección 'tareas'
+    const result = await db.collection('tareas').insertOne(newTask);
+
+    revalidatePath('/dashboard/tasks');
+    revalidatePath('/dashboard');
+
+    // Convertir el ObjectId a string antes de devolverlo
+    return { success: true, insertedId: result.insertedId.toString() };
+
+  } catch (error) {
+    console.error('Error al añadir la tarea:', error);
+    return { error: 'Ocurrió un error en el servidor al añadir la tarea.' };
+  }
+}
+
+/**
+ * Server Action para eliminar una tarea de la colección 'tareas'.
+ */
+export async function deleteTaskAction(taskId: string) {
+  try {
+    if (!ObjectId.isValid(taskId)) {
+      return { error: 'El ID de la tarea no es válido.' };
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+    // Eliminar de la colección 'tareas'
+    const result = await db.collection('tareas').deleteOne({ _id: new ObjectId(taskId) });
+
+    if (result.deletedCount === 0) {
+      return { error: 'No se pudo encontrar la tarea para eliminar.' };
+    }
+
+    revalidatePath('/dashboard/tasks');
+    return { success: true };
+
+  } catch (error) {
+    console.error('Error al eliminar la tarea:', error);
+    return { error: 'Ocurrió un error en el servidor al eliminar la tarea.' };
+  }
+}
+
+
+// --- OTRAS ACCIONES (SIN CAMBIOS) ---
+
 const suggestActivitiesSchema = z.object({
   mood: z.string().min(1, 'El estado de ánimo es obligatorio.'),
   location: z.string().min(2, 'La ubicación es obligatoria.'),
 });
 
-/**
- * Server Action para obtener sugerencias de actividades creativas.
- * ... (código existente)
- */
 export async function suggestActivitiesAction(mood: string, location: string) {
   const validationResult = suggestActivitiesSchema.safeParse({ mood, location });
 
   if (!validationResult.success) {
-    const errorMessage = validationResult.error.errors.map(e => e.message).join(', ');
-    return { error: `Entrada inválida: ${errorMessage}` };
+    return { error: `Entrada inválida: ${validationResult.error.errors.map(e => e.message).join(', ')}` };
   }
 
   const { mood: validatedMood, location: validatedLocation } = validationResult.data;
 
   try {
-    const suggestions = await suggestCreativeActivities({
-      mood: validatedMood,
-      location: validatedLocation,
-    });
-    return suggestions;
-  } catch (error) {
-    console.error('Error calling suggestCreativeActivities flow:', error);
-    return { error: 'No se pudieron obtener las sugerencias. Por favor, inténtalo de nuevo más tarde.' };
-  }
-}
+    const suggestions = await suggestCreativeActivities(validatedMood, validatedLocation);
 
-/**
- * Server Action para eliminar una tarea de Firestore.
- * @param taskId El ID del documento de la tarea a eliminar.
- * @returns Un objeto indicando el éxito o un objeto de error.
- */
-export async function deleteTaskAction(taskId: string) {
-  if (!taskId || typeof taskId !== 'string') {
-    return { error: 'ID de tarea inválido.' };
-  }
+    if (!suggestions || suggestions.length === 0) {
+      return { error: 'No se pudieron generar sugerencias.' };
+    }
 
-  try {
-    console.log(`Intentando eliminar la tarea con ID: ${taskId}`);
-    await db.collection('tareas').doc(taskId).delete();
-    console.log(`Tarea con ID: ${taskId} eliminada con éxito.`);
-
-    // Revalida la ruta raíz para refrescar la lista de tareas.
-    // Si tus tareas están en otra página (ej. /dashboard), cambia '/' por esa ruta.
-    revalidatePath('/');
-
-    return { success: true };
+    const client = await clientPromise;
+    const db = client.db();
+    await db.collection('suggested_activities').insertMany(
+      suggestions.map(suggestion => ({ ...suggestion, mood: validatedMood, location: validatedLocation, createdAt: new Date() }))
+    );
+    
+    revalidatePath('/dashboard');
+    return { success: true, suggestions };
 
   } catch (error) {
-    console.error('Error al eliminar la tarea:', error);
-    return { error: 'No se pudo eliminar la tarea. Por favor, inténtalo de nuevo.' };
+    console.error('Error en la acción del servidor:', error);
+    return { error: 'Ocurrió un error en el servidor.' };
   }
 }

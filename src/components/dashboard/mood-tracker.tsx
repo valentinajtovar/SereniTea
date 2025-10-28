@@ -1,7 +1,7 @@
 'use client';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { JournalEntry } from "./journal-entries"; // Assuming type export from journal-entries
+import { type JournalEntry } from "@/types";
 
 // 1. Define colors for each primary emotion
 const moodColors: { [key: string]: string } = {
@@ -22,24 +22,20 @@ const MoodTracker = ({ entries }: { entries: JournalEntry[] }) => {
 
   return (
     <div className="p-6 bg-white rounded-2xl shadow-lg">
-      <h3 className="font-headline text-xl text-gray-700 mb-4">Tu Historial de Ánimo</h3>
-      <p className="text-sm text-gray-500 mb-4">
-        Cada bloque representa un día. Pasa el cursor sobre ellos para ver los detalles.
-      </p>
+      <h3 className="font-headline text-2xl text-gray-800 mb-4">Tu Historial de Ánimo</h3>
       <TooltipProvider>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex items-center space-x-1 h-12 bg-gray-100 rounded-lg p-2">
           {entries.length > 0 ? (
-            // We reverse the array to show the oldest first in the tracker
-            [...entries].reverse().map(entry => (
-              <Tooltip key={entry.id}>
+            entries.slice(0, 30).reverse().map(entry => (
+              <Tooltip key={entry._id}>
                 <TooltipTrigger asChild>
-                  <div className={`w-8 h-8 rounded-md cursor-pointer transition-all`}>
-                     <div className={`w-full h-full rounded-md ${moodColors[entry.mainEmotion] || moodColors.default}`} />
-                  </div>
+                  <div 
+                    className={`w-full h-full rounded-md cursor-pointer transition-colors duration-300 ${moodColors[entry.mainEmotion] || moodColors.default}`}
+                  />
                 </TooltipTrigger>
                 <TooltipContent>
                   <p className="font-semibold">{entry.mainEmotion} ({entry.emotionEmoji})</p>
-                  <p className="text-xs text-gray-600">{formatTooltipDate(entry.createdAt.toDate())}</p>
+                  <p className="text-xs text-gray-600">{formatTooltipDate(new Date(entry.createdAt))}</p>
                 </TooltipContent>
               </Tooltip>
             ))
