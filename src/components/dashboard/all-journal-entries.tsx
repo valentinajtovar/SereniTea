@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
 import { Loader2 } from 'lucide-react';
+import { auth } from '@/lib/firebase-client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -14,19 +15,21 @@ const formatDetailedDate = (dateString: string | Date) => {
   return `${date.toLocaleDateString('es-ES')} a las ${timeString}`;
 };
 
-const AllJournalEntries = ({ user }: { user: User | null }) => {
+const AllJournalEntries = () => {
   const { toast } = useToast();
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
     const fetchJournalEntries = async () => {
       setIsLoading(true);
+      const user = auth.currentUser;
+
+      if (!user) {
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const response = await fetch(`/api/journal?firebaseUid=${user.uid}`);
         if (!response.ok) {
@@ -43,7 +46,7 @@ const AllJournalEntries = ({ user }: { user: User | null }) => {
     };
 
     fetchJournalEntries();
-  }, [user, toast]);
+  }, [toast]);
 
   return (
     <Card className="shadow-lg">
