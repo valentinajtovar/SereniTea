@@ -1,65 +1,80 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { useState, useEffect, useCallback } from 'react';
 import { User } from 'firebase/auth';
 import { Square, Loader2, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { db } from '@/lib/firebase-client';
-import { type Task } from '@/types';
+import { toast } from '@/hooks/use-toast';
+
+// Definimos un tipo local para las tareas que vienen de nuestra API
+interface ApiTask {
+  _id: string;
+  title: string;
+  description: string;
+  status: string;
+  dueDate: string; // La fecha vendrá como un string ISO
+}
+
+// Adaptamos la interfaz del componente para que use un objeto Date
+interface Task extends Omit<ApiTask, 'dueDate'> {
+  dueDate: Date;
+}
 
 const TaskSummary = ({ user }: { user: User | null }) => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-
+  const fetchTasks = useCallback(async (firebaseUid: string) => {
     setIsLoading(true);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
+    try {
+      const response = await fetch(`/api/tasks?firebaseUid=${firebaseUid}`);
+      if (!response.ok) {
+        throw new Error('No se pudieron cargar las tareas.');
+      }
+      const data: ApiTask[] = await response.json();
+      
+      // Mapeamos los datos de la API, convirtiendo el string de la fecha a un objeto Date
+      const formattedTasks = data.map(task => ({
+        ...task,
+        dueDate: new Date(task.dueDate),
+      }));
 
-    const q = query(
-      collection(db, "tareas"),
-      where("pacienteId", "==", user.uid),
-      where("estado", "==", "pendiente"),
-      where("fechaDue", ">=", Timestamp.fromDate(startOfToday)),
-      orderBy("fechaDue", "asc")
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const tasksData: Task[] = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
-      setTasks(tasksData);
+      setTasks(formattedTasks);
+    } catch (error) {
+      console.error("Error al obtener las tareas:", error);
+      toast({ title: "Error", description: "No se pudieron cargar tus tareas pendientes.", variant: "destructive" });
+    } finally {
       setIsLoading(false);
-    }, (error) => {
-      console.error("Error fetching pending tasks: ", error);
-      setIsLoading(false);
-    });
+    }
+  }, [toast]);
 
-    return () => unsubscribe();
-  }, [user]);
+  useEffect(() => {
+    if (user) {
+      fetchTasks(user.uid);
+    } else {
+      setIsLoading(false);
+    }
+  }, [user, fetchTasks]);
 
   const endOfToday = new Date();
   endOfToday.setHours(23, 59, 59, 999);
 
-  const todayTasks = tasks.filter(task => task.fechaDue.toDate() <= endOfToday);
-  const upcomingTasks = tasks.filter(task => task.fechaDue.toDate() > endOfToday);
+  const todayTasks = tasks.filter(task => task.dueDate <= endOfToday);
+  const upcomingTasks = tasks.filter(task => task.dueDate > endOfToday);
 
   const TaskItem = ({ task, showTime }: { task: Task; showTime?: boolean }) => (
     <div className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50">
       <Square className="h-5 w-5 text-gray-400 flex-shrink-0 mt-1" />
       <div className="flex-grow">
-        <p className="text-gray-800">{task.descripcion}</p>
-        <p className="text-sm text-gray-500 capitalize">
+        <p className="font-semibold text-gray-800">{task.title}</p>
+        <p className="text-sm text-gray-600 capitalize">
           {showTime
-            ? task.fechaDue.toDate().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
-            : task.fechaDue.toDate().toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
+            ? task.dueDate.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
+            : task.dueDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </div>
     </div>
@@ -89,7 +104,7 @@ const TaskSummary = ({ user }: { user: User | null }) => {
               <div>
                 <h3 className="font-semibold text-gray-700 mb-2 px-2">Hoy</h3>
                 <div className="space-y-1">
-                  {todayTasks.map(task => <TaskItem key={task.id} task={task} showTime />)}
+                  {todayTasks.map(task => <TaskItem key={task._id} task={task} showTime />)}
                 </div>
               </div>
             )}
@@ -97,7 +112,7 @@ const TaskSummary = ({ user }: { user: User | null }) => {
               <div>
                 <h3 className="font-semibold text-gray-700 mt-4 mb-2 px-2">Pronto</h3>
                 <div className="space-y-1">
-                  {upcomingTasks.map(task => <TaskItem key={task.id} task={task} />)}
+                  {upcomingTasks.map(task => <TaskItem key={task._id} task={task} />)}
                 </div>
               </div>
             )}

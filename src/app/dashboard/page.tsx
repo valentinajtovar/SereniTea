@@ -26,7 +26,7 @@ import JournalEntries from '@/components/dashboard/journal-entries';
 import MoodTracker from '@/components/dashboard/mood-tracker'; 
 import MainHeader from '@/components/dashboard/main-header';
 import QuickTip from '@/components/dashboard/quick-tip';
-import RecommendedTasks from '@/components/dashboard/RecommendedTasks'; // Importado
+import RecommendedTasks from '@/components/dashboard/RecommendedTasks';
 import { type JournalEntry, type Paciente } from '@/types';
 
 const emotions = {
@@ -198,8 +198,8 @@ export default function PatientDashboard() {
             
             <div className="lg:col-span-2 space-y-8">
 
-              {/* Tareas Recomendadas Añadidas Aquí */}
-              <RecommendedTasks entries={journalEntries} />
+              {/* Tareas Recomendadas ahora recibe el usuario */}
+              <RecommendedTasks entries={journalEntries} user={currentUser} />
 
                <div className="p-8 bg-white rounded-2xl shadow-lg">
                 <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>

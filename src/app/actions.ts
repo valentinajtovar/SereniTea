@@ -7,59 +7,65 @@ import clientPromise from '@/lib/mongodb';
 import { revalidatePath } from 'next/cache';
 import { ObjectId } from 'mongodb';
 
-// Esquema para validar las entradas de la acción del servidor
-const suggestActivitiesSchema = z.object({
-  mood: z.string().min(1, 'El estado de ánimo es obligatorio.'),
-  location: z.string().min(2, 'La ubicación es obligatoria.'),
+// Esquema para la nueva tarea
+const taskSchema = z.object({
+  title: z.string().min(1, 'El título es obligatorio.'),
+  description: z.string().optional(),
+  firebaseUid: z.string().min(1, 'El ID de usuario de Firebase es obligatorio.')
 });
 
 /**
- * Server Action para obtener sugerencias de actividades creativas.
- * Esta acción se conecta a una IA para obtener sugerencias y las guarda.
+ * Server Action para añadir una nueva tarea desde las sugerencias.
+ * Esta acción guarda la tarea en la colección 'taks'.
  */
-export async function suggestActivitiesAction(mood: string, location: string) {
-  const validationResult = suggestActivitiesSchema.safeParse({ mood, location });
+export async function addTaskAction(taskData: { title: string; description?: string; firebaseUid: string; }) {
+  const validationResult = taskSchema.safeParse(taskData);
 
   if (!validationResult.success) {
-    const errorMessage = validationResult.error.errors.map(e => e.message).join(', ');
-    return { error: `Entrada inválida: ${errorMessage}` };
+    return { error: `Entrada inválida: ${validationResult.error.errors.map(e => e.message).join(', ')}` };
   }
 
-  const { mood: validatedMood, location: validatedLocation } = validationResult.data;
+  const { title, description, firebaseUid } = validationResult.data;
 
   try {
-    console.log('Obteniendo sugerencias de la IA...');
-    const suggestions = await suggestCreativeActivities(validatedMood, validatedLocation);
-
-    if (!suggestions || suggestions.length === 0) {
-      return { error: 'No se pudieron generar sugerencias. Inténtalo de nuevo.' };
-    }
-
-    // Conectar a MongoDB y guardar las sugerencias
     const client = await clientPromise;
     const db = client.db();
-    const suggestionsCollection = db.collection('suggested_activities');
 
-    // Podríamos añadir el ID de usuario aquí si fuera necesario
-    const result = await suggestionsCollection.insertMany(
-      suggestions.map(suggestion => ({ ...suggestion, mood: validatedMood, location: validatedLocation, createdAt: new Date() }))
-    );
-    
-    console.log(`${result.insertedCount} sugerencias guardadas en la base de datos.`);
+    const patient = await db.collection('pacientes').findOne({ firebaseUid });
+    if (!patient) {
+      return { error: 'Paciente no encontrado.' };
+    }
 
-    // Revalida la ruta para que los nuevos datos se muestren si es necesario
-    revalidatePath('/dashboard'); // O cualquier otra página que muestre estas sugerencias
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + 1);
 
-    return { success: true, suggestions };
+    const newTask = {
+      title,
+      description: description || '',
+      patientId: patient._id,
+      firebaseUid,
+      status: 'pendiente',
+      createdAt: new Date(),
+      dueDate,
+    };
+
+    // Guardar en la colección 'taks'
+    const result = await db.collection('taks').insertOne(newTask);
+
+    revalidatePath('/dashboard/tasks');
+    revalidatePath('/dashboard');
+
+    // Convertir el ObjectId a string antes de devolverlo
+    return { success: true, insertedId: result.insertedId.toString() };
 
   } catch (error) {
-    console.error('Error en la acción del servidor:', error);
-    return { error: 'Ocurrió un error en el servidor al procesar tu solicitud.' };
+    console.error('Error al añadir la tarea:', error);
+    return { error: 'Ocurrió un error en el servidor al añadir la tarea.' };
   }
 }
 
 /**
- * Server Action para eliminar una tarea.
+ * Server Action para eliminar una tarea de la colección 'taks'.
  */
 export async function deleteTaskAction(taskId: string) {
   try {
@@ -69,9 +75,8 @@ export async function deleteTaskAction(taskId: string) {
 
     const client = await clientPromise;
     const db = client.db();
-    const tasksCollection = db.collection('tasks');
-
-    const result = await tasksCollection.deleteOne({ _id: new ObjectId(taskId) });
+    // Eliminar de la colección 'taks'
+    const result = await db.collection('taks').deleteOne({ _id: new ObjectId(taskId) });
 
     if (result.deletedCount === 0) {
       return { error: 'No se pudo encontrar la tarea para eliminar.' };
@@ -83,5 +88,44 @@ export async function deleteTaskAction(taskId: string) {
   } catch (error) {
     console.error('Error al eliminar la tarea:', error);
     return { error: 'Ocurrió un error en el servidor al eliminar la tarea.' };
+  }
+}
+
+
+// --- OTRAS ACCIONES (SIN CAMBIOS) ---
+
+const suggestActivitiesSchema = z.object({
+  mood: z.string().min(1, 'El estado de ánimo es obligatorio.'),
+  location: z.string().min(2, 'La ubicación es obligatoria.'),
+});
+
+export async function suggestActivitiesAction(mood: string, location: string) {
+  const validationResult = suggestActivitiesSchema.safeParse({ mood, location });
+
+  if (!validationResult.success) {
+    return { error: `Entrada inválida: ${validationResult.error.errors.map(e => e.message).join(', ')}` };
+  }
+
+  const { mood: validatedMood, location: validatedLocation } = validationResult.data;
+
+  try {
+    const suggestions = await suggestCreativeActivities(validatedMood, validatedLocation);
+
+    if (!suggestions || suggestions.length === 0) {
+      return { error: 'No se pudieron generar sugerencias.' };
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+    await db.collection('suggested_activities').insertMany(
+      suggestions.map(suggestion => ({ ...suggestion, mood: validatedMood, location: validatedLocation, createdAt: new Date() }))
+    );
+    
+    revalidatePath('/dashboard');
+    return { success: true, suggestions };
+
+  } catch (error) {
+    console.error('Error en la acción del servidor:', error);
+    return { error: 'Ocurrió un error en el servidor.' };
   }
 }

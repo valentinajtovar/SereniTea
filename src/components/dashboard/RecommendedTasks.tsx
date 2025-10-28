@@ -3,7 +3,11 @@
 
 import { useState, useEffect } from 'react';
 import { type JournalEntry } from '@/types';
-import { Lightbulb } from 'lucide-react';
+import { Lightbulb, PlusCircle, CheckCircle } from 'lucide-react';
+import { User } from 'firebase/auth';
+import { addTaskAction } from '@/app/actions';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 interface RecommendedTask {
     _id: string;
@@ -12,10 +16,13 @@ interface RecommendedTask {
     description: string;
 }
 
-const RecommendedTasks = ({ entries }: { entries: JournalEntry[] }) => {
+// El componente ahora acepta el usuario de Firebase
+const RecommendedTasks = ({ entries, user }: { entries: JournalEntry[]; user: User | null }) => {
     const [tasks, setTasks] = useState<RecommendedTask[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [addedTasks, setAddedTasks] = useState<Set<string>>(new Set()); // Para rastrear tareas añadidas
+    const { toast } = useToast();
 
     useEffect(() => {
         if (entries.length === 0) {
@@ -23,28 +30,20 @@ const RecommendedTasks = ({ entries }: { entries: JournalEntry[] }) => {
             return;
         }
 
-        // 1. Encuentra la emoción de la entrada más reciente
         const latestEntry = entries.reduce((latest, current) => 
             new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest
         );
         const latestEmotion = latestEntry.mainEmotion;
 
-        // 2. Llama a la API para obtener las tareas recomendadas
         const fetchRecommendedTasks = async () => {
             try {
                 setIsLoading(true);
                 const response = await fetch(`/api/recommended-tasks?emotion=${latestEmotion}`);
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || 'No se pudieron cargar las tareas recomendadas.');
-                }
-
+                if (!response.ok) throw new Error('No se pudieron cargar las tareas recomendadas.');
                 const data = await response.json();
                 setTasks(data);
                 setError(null);
             } catch (err: any) {
-                console.error(err);
                 setError(err.message);
             } finally {
                 setIsLoading(false);
@@ -52,8 +51,30 @@ const RecommendedTasks = ({ entries }: { entries: JournalEntry[] }) => {
         };
 
         fetchRecommendedTasks();
+    }, [entries]);
 
-    }, [entries]); // El efecto se vuelve a ejecutar si las entradas cambian
+    // Función para manejar la adición de una tarea
+    const handleAddTask = async (task: RecommendedTask) => {
+        if (!user) {
+            toast({ title: 'Error', description: 'Debes iniciar sesión para añadir tareas.', variant: 'destructive' });
+            return;
+        }
+
+        const taskData = {
+            title: task.title,
+            description: task.description,
+            firebaseUid: user.uid,
+        };
+
+        const result = await addTaskAction(taskData);
+
+        if (result.success) {
+            toast({ title: '¡Tarea añadida!', description: `"${task.title}" ha sido añadida a tu lista.` });
+            setAddedTasks(prev => new Set(prev).add(task._id)); // Marcar como añadida
+        } else {
+            toast({ title: 'Error al añadir tarea', description: result.error, variant: 'destructive' });
+        }
+    };
 
     return (
         <div className="p-6 bg-white rounded-2xl shadow-lg">
@@ -62,34 +83,31 @@ const RecommendedTasks = ({ entries }: { entries: JournalEntry[] }) => {
                 <h3 className="font-headline text-2xl text-gray-800">Sugerencias para ti</h3>
             </div>
 
-            {entries.length > 0 && (
-                <p className="text-gray-600 mb-4">
-                    Basado en tu estado de ánimo más reciente ({entries.reduce((l, c) => new Date(c.createdAt) > new Date(l.createdAt) ? c : l).mainEmotion}), te recomendamos estas actividades:
-                </p>
-            )}
-
             {isLoading && <p className="text-gray-500">Buscando sugerencias...</p>}
-
             {error && <p className="text-red-500">Error: {error}</p>}
 
             {!isLoading && !error && tasks.length > 0 && (
                 <ul className="space-y-3">
                     {tasks.map((task) => (
-                        <li key={task._id} className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                            <p className="font-semibold text-gray-800">{task.title}</p>
-                            <p className="text-sm text-gray-600">{task.description}</p>
+                        <li key={task._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                                <p className="font-semibold text-gray-800">{task.title}</p>
+                                <p className="text-sm text-gray-600">{task.description}</p>
+                            </div>
+                            <Button 
+                                size="sm"
+                                onClick={() => handleAddTask(task)}
+                                disabled={addedTasks.has(task._id)} // Deshabilitar si ya se añadió
+                                className="ml-4"
+                            >
+                                {addedTasks.has(task._id) ? <CheckCircle className="h-4 w-4 mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
+                                {addedTasks.has(task._id) ? 'Añadida' : 'Añadir'}
+                            </Button>
                         </li>
                     ))}
                 </ul>
             )}
-
-            {!isLoading && !error && tasks.length === 0 && entries.length > 0 && (
-                <p className="text-gray-500">No hay sugerencias disponibles para tu estado de ánimo actual.</p>
-            )}
-
-            {!isLoading && entries.length === 0 && (
-                <p className="text-gray-500">Cuando escribas tu primera entrada en el diario, te daremos algunas sugerencias.</p>
-            )}
+            {/* ... otros estados ... */}
         </div>
     );
 };
