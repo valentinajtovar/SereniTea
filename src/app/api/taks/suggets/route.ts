@@ -1,11 +1,11 @@
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
-import { dbConnect } from "@/src/lib/db";
-import { Paciente } from "@/src/models/Paciente";
-import { JournalEntry } from "@/src/models/JournalEntry";
-import { Task } from "@/src/models/Task";
-import { suggestPersonalizedTasks } from "@/src/ai/flows/suggest-personalized-tasks";
+import { dbConnect } from "@/lib/db";
+import { Paciente } from "@/models/Paciente";
+import { JournalEntry } from "@/models/JournalEntry";
+import { Task } from "@/models/Task";
+import { suggestPersonalizedTasks } from "@/ai/flows/suggest-personalized-tasks";
 
 type IncomingTask = {
   descripcion: string;
