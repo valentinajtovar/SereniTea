@@ -3,7 +3,7 @@ export const runtime = "nodejs";
 import { NextResponse } from "next/server";
 import { dbConnect } from "@/lib/db";
 import { Paciente } from "@/models/Paciente";
-import { JournalEntry } from "@/models/JournalEntry";
+import { JournalEntry } from "@/types";
 import { Task } from "@/models/Task";
 import { suggestPersonalizedTasks } from "@/ai/flows/suggest-personalized-tasks";
 
@@ -55,14 +55,14 @@ export async function POST(req: Request) {
         const main = entry.mainEmotion || "emociones";
         const sub = entry.subEmotion || "—";
         const text = entry.journal?.slice(0, 260) || "";
-        prompt += `- El ${entryDate} se sintió ${main} (${sub}) y escribió: "${text}"\n`;
+        prompt += `- El ${entryDate} se sintió ${main} (${sub}) y escribió: \"${text}\"\n`;
       }
     }
 
     if (completedTasks.length > 0) {
       prompt += `\n--- Tareas completadas y su feedback ---\n`;
       for (const task of completedTasks) {
-        prompt += `- Tarea: "${task.descripcion}", Feedback: Utilidad (${task.feedback?.utilidad ?? "-"}), Dificultad (${task.feedback?.dificultad ?? "-"}), Comentario: "${task.feedback?.comentario ?? "-"}"\n`;
+        prompt += `- Tarea: \"${task.descripcion}\", Feedback: Utilidad (${task.feedback?.utilidad ?? "-"}), Dificultad (${task.feedback?.dificultad ?? "-"}), Comentario: \"${task.feedback?.comentario ?? "-"}\"\n`;
       }
     }
 
