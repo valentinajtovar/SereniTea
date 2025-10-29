@@ -49,21 +49,13 @@ export default function Home() {
   ];
 
   const registrationOptions = [
-    {
-      icon: <Stethoscope className="w-6 h-6 mr-2" />,
-      title: 'Registrarse como Psicólogo',
-      href: '/register-psychologist',
-    },
+
     {
       icon: <Users className="w-6 h-6 mr-2" />,
       title: 'Registrarse como Paciente',
       href: '/assessment',
     },
-    {
-      icon: <KeyRound className="w-6 h-6 mr-2" />,
-      title: 'Paciente con Código de Invitación',
-      href: '/assessment',
-    },
+
     {
       icon: <HeartHandshake className="w-6 h-6 mr-2" />,
       title: 'Un ser querido buscando ayuda',

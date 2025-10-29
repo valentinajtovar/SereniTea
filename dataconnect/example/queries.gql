@@ -1,0 +1,30 @@
+mutation CreateNewMoodEntry @auth(level: USER) {
+  moodEntry_insert(data: {
+    patientId_expr: "uuidV4()",
+    moodRating: 5,
+    entryDate_expr: "request.time"
+  })
+}
+
+query ListAllActivities @auth(level: PUBLIC) {
+  activities {
+    id
+    title
+    description
+  }
+}
+
+query GetPatientProfile @auth(level: USER) {
+  patientProfile(key: {userId_expr: "auth.uid"}) {
+    id
+    medicalHistory
+    dob
+  }
+}
+
+mutation UpdateTherapistConsultationFee($newFee: Float!) @auth(level: USER) {
+  therapistProfile_update(
+    key: {userId_expr: "auth.uid"},
+    data: {consultationFee: $newFee}
+  )
+}

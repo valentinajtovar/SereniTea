@@ -1,0 +1,65 @@
+type User @table {
+  authId: String!
+  userType: String!
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  bio: String
+  specialties: [String]
+  contactPhone: String
+}
+
+type PatientProfile @table {
+  user: User!
+  currentTherapist: User
+  createdAt: Timestamp!
+  dob: Date
+  medicalHistory: String
+}
+
+type TherapistProfile @table {
+  user: User!
+  licenseNumber: String!
+  createdAt: Timestamp!
+  yearsOfExperience: Int
+  consultationFee: Float
+}
+
+type Activity @table {
+  title: String!
+  description: String!
+  type: String!
+  durationEstimate: Int!
+  createdAt: Timestamp!
+  resources: [String]
+  keywords: [String]
+}
+
+type AssignedActivity @table {
+  patient: PatientProfile!
+  therapist: TherapistProfile!
+  activity: Activity!
+  assignedDate: Timestamp!
+  dueDate: Timestamp!
+  completionDate: Timestamp
+  notes: String
+  status: String
+}
+
+type MoodEntry @table {
+  patient: PatientProfile!
+  moodRating: Int!
+  entryDate: Date!
+  createdAt: Timestamp!
+  notes: String
+  emotions: [String]
+}
+
+type ForumPost @table {
+  user: User!
+  title: String
+  content: String!
+  createdAt: Timestamp!
+  parentPostId: UUID
+}
