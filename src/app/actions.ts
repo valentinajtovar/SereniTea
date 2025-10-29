@@ -129,3 +129,37 @@ export async function suggestActivitiesAction(mood: string, location: string) {
     return { error: 'Ocurrió un error en el servidor.' };
   }
 }
+
+const psychologistSchema = z.object({
+    fullName: z.string().min(3, 'El nombre completo es requerido.'),
+    email: z.string().email('Por favor, introduce un correo electrónico válido.'),
+    specialization: z.string().min(3, 'La especialización es requerida.'),
+    bio: z.string().min(10, 'La biografía debe tener al menos 10 caracteres.'),
+  });
+
+export async function registerPsychologistAction(data: {
+    fullName: string;
+    email: string;
+    specialization: string;
+    bio: string;
+}) {
+    const validationResult = psychologistSchema.safeParse(data);
+
+    if (!validationResult.success) {
+        const errorMessage = validationResult.error.errors.map((e) => e.message).join(', ');
+        return { error: `Entrada inválida: ${errorMessage}` };
+    }
+
+    try {
+        await db.collection('psychologist_applications').add({
+            ...validationResult.data,
+            status: 'pending',
+            submittedAt: new Date(),
+        });
+
+        return { success: true };
+    } catch (error) {
+        console.error('Error al guardar la solicitud de registro de psicólogo:', error);
+        return { error: 'No se pudo enviar la solicitud. Por favor, inténtalo de nuevo más tarde.' };
+    }
+}

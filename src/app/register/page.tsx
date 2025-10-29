@@ -56,7 +56,6 @@ export default function RegisterPage() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsRegisterLoading(true);
-
     try {
       const response = await fetch('/api/register', {
         method: 'POST',
@@ -65,6 +64,8 @@ export default function RegisterPage() {
         },
         body: JSON.stringify(values),
       });
+      // Store user data in localStorage
+      localStorage.setItem('registrationData', JSON.stringify(values));
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -89,6 +90,14 @@ export default function RegisterPage() {
         variant: "destructive" 
       });
     } finally {
+        title: "Datos guardados temporalmente",
+        description: "Ahora completa la evaluación para finalizar tu registro.",
+      });
+
+      router.push('/assessment');
+    } catch (error) {
+      console.error("Redirection to assessment error:", error);
+      toast({ title: "Error", description: "No se pudo redirigir a la evaluación.", variant: "destructive" });
       setIsRegisterLoading(false);
     }
   }
@@ -109,7 +118,7 @@ export default function RegisterPage() {
               <FormField control={form.control} name="birthdate" render={({ field }) => (<FormItem><FormLabel>Fecha de Nacimiento</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="anonymousName" render={({ field }) => (<FormItem><FormLabel>Nombre de Usuario Anónimo</FormLabel><FormControl><Input placeholder="ej. lago_azul" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <Button type="submit" className="w-full" disabled={isRegisterLoading}>
-                {isRegisterLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />} Registrarse
+                {isRegisterLoading && <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />} Siguiente
               </Button>
             </form>
           </Form>
