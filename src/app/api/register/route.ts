@@ -1,47 +1,43 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { admin } from '@/lib/firebase-admin';
 import { dbConnect } from '@/lib/db';
 import { Paciente } from '@/models/Paciente';
 import { z } from 'zod';
 
+// Updated schema: expects UID from the client, removes password.
 const formSchema = z.object({
+  uid: z.string().min(1, "Firebase UID is required."),
   name: z.string().min(3),
   email: z.string().email(),
   birthdate: z.string().refine((val) => !isNaN(Date.parse(val))),
   anonymousName: z.string().min(3),
-  password: z.string().min(6), // Firebase requires a password of at least 6 characters
 });
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const parsedData = formSchema.safeParse(body);
-
-  if (!parsedData.success) {
-    return NextResponse.json({ error: { message: "Validation failed", details: parsedData.error.errors } }, { status: 400 });
-  }
-
-  const { name, email, birthdate, anonymousName, password } = parsedData.data;
-  let uid: string | undefined = undefined;
-
   try {
-    // 1. Create user in Firebase Authentication
-    const userRecord = await admin.auth().createUser({
-      email: email,
-      password: password,
-      displayName: name,
-    });
+    const body = await req.json();
+    const parsedData = formSchema.safeParse(body);
 
-    uid = userRecord.uid;
+    if (!parsedData.success) {
+      return NextResponse.json({ error: { message: "Validation failed", details: parsedData.error.errors } }, { status: 400 });
+    }
 
-    // 2. Connect to MongoDB
+    const { uid, name, email, birthdate, anonymousName } = parsedData.data;
+
+    // Connect to MongoDB
     await dbConnect();
 
-    // 3. Create patient in MongoDB using the Paciente model
+    // Check if a patient with this UID already exists
+    const existingPatient = await Paciente.findOne({ uid: uid });
+    if (existingPatient) {
+        return NextResponse.json({ error: { message: 'A patient with this UID already exists.' } }, { status: 409 });
+    }
+
+    // Create a new patient in MongoDB
     const patient = new Paciente({
-      uid: uid, // Use the uid from Firebase
-      nombre: name.split(' ')[0], // Extract first name
-      apellido: name.split(' ').slice(1).join(' '), // Extract last name(s)
+      uid: uid, // Use the uid from the client-side Firebase Auth
+      nombre: name.split(' ')[0],
+      apellido: name.split(' ').slice(1).join(' '),
       correo: email,
       nacimiento: new Date(birthdate),
       usuario_anonimo: anonymousName,
@@ -53,17 +49,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message: 'Patient registered successfully', uid: uid }, { status: 201 });
 
   } catch (error: any) {
-    // If user was created in Firebase but patient creation in MongoDB failed, delete the Firebase user
-    if (uid) {
-      await admin.auth().deleteUser(uid);
-    }
-    
-    // Check for specific Firebase errors
-    if (error.code === 'auth/email-already-exists') {
-      return NextResponse.json({ error: { message: 'The email address is already in use by another account.' } }, { status: 409 });
-    }
-    
-    // General error handler
+    // Handle potential errors, e.g., database connection issues
+    console.error("Error during patient registration:", error);
     return NextResponse.json({ error: { message: 'Internal Server Error', details: error.message } }, { status: 500 });
   }
 }

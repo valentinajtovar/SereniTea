@@ -1,0 +1,18 @@
+mutation SeedDatabase @auth(level: USER) {
+  activity_insertMany(data: [
+    {
+      title: "Mindfulness Meditation",
+      description: "A guided meditation to promote relaxation and reduce stress.",
+      type: "Meditation",
+      durationEstimate: 15,
+      keywords: ["mindfulness", "meditation", "stress reduction"]
+    },
+    {
+      title: "Gratitude Journaling",
+      description: "Reflect on things you're grateful for to boost mood.",
+      type: "Journaling",
+      durationEstimate: 10,
+      keywords: ["gratitude", "journaling", "mood boost"]
+    }
+  ])
+}

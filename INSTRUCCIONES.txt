@@ -1,0 +1,8 @@
+Iniciar: 
+npm install
+npm run dev
+
+
+Revisar conexion:
+
+npx tsx src/test/firebase-connection.ts
