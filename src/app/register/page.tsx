@@ -57,6 +57,18 @@ export default function RegisterPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsRegisterLoading(true);
     try {
+      // Store user data in localStorage
+      localStorage.setItem('registrationData', JSON.stringify(values));
+
+      toast({
+        title: "Datos guardados temporalmente",
+        description: "Ahora completa la evaluación para finalizar tu registro.",
+      });
+
+      router.push('/assessment');
+    } catch (error) {
+      console.error("Redirection to assessment error:", error);
+      toast({ title: "Error", description: "No se pudo redirigir a la evaluación.", variant: "destructive" });
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
