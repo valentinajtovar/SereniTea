@@ -78,7 +78,9 @@ export default function RegisterPage() {
         description: "Tu cuenta ha sido creada y tu perfil guardado.",
       });
 
-      router.push('/login');
+      /*router.push('/login');*/
+      router.push('/survey');
+      
     } catch (error: any) {
       console.error("Registration error:", error);
       let description = "Ocurrió un error inesperado.";
