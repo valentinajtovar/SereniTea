@@ -367,7 +367,7 @@ const AllTasks = () => {
 
           <div className="flex-grow">
             <p className={`text-gray-800 ${task.status === 'completada' ? 'line-through text-gray-500' : ''}`}>
-              {task.title || task.description}
+              {task.description}
             </p>
             <div className="text-xs text-gray-500 mt-1">
               <span>

@@ -1,115 +1,187 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { type JournalEntry } from '@/types';
 import { Lightbulb, PlusCircle, CheckCircle } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { addTaskAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 interface RecommendedTask {
-    _id: string;
-    mainEmotion: string;
-    title: string;
-    description: string;
+  _id: string;
+  mainEmotion: string;
+  title: string;
+  description: string;
 }
 
-// El componente ahora acepta el usuario de Firebase
-const RecommendedTasks = ({ entries, user }: { entries: JournalEntry[]; user: User | null }) => {
-    const [tasks, setTasks] = useState<RecommendedTask[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [addedTasks, setAddedTasks] = useState<Set<string>>(new Set()); // Para rastrear tareas añadidas
-    const { toast } = useToast();
+type Props = {
+  entries: JournalEntry[];
+  user: User | null;
+};
 
-    useEffect(() => {
-        if (entries.length === 0) {
-            setIsLoading(false);
-            return;
-        }
+const RecommendedTasks = ({ entries, user }: Props) => {
+  const { toast } = useToast();
 
-        const latestEntry = entries.reduce((latest, current) => 
-            new Date(current.createdAt) > new Date(latest.createdAt) ? current : latest
-        );
-        const latestEmotion = latestEntry.mainEmotion;
+  const [tasks, setTasks] = useState<RecommendedTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-        const fetchRecommendedTasks = async () => {
-            try {
-                setIsLoading(true);
-                const response = await fetch(`/api/recommended-tasks?emotion=${latestEmotion}`);
-                if (!response.ok) throw new Error('No se pudieron cargar las tareas recomendadas.');
-                const data = await response.json();
-                setTasks(data);
-                setError(null);
-            } catch (err: any) {
-                setError(err.message);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+  // Ocultar localmente las ya añadidas
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [addingId, setAddingId] = useState<string | null>(null);
 
-        fetchRecommendedTasks();
-    }, [entries]);
-
-    // Función para manejar la adición de una tarea
-    const handleAddTask = async (task: RecommendedTask) => {
-        if (!user) {
-            toast({ title: 'Error', description: 'Debes iniciar sesión para añadir tareas.', variant: 'destructive' });
-            return;
-        }
-
-        const taskData = {
-            title: task.title,
-            description: task.description,
-            firebaseUid: user.uid,
-        };
-
-        const result = await addTaskAction(taskData);
-
-        if (result.success) {
-            toast({ title: '¡Tarea añadida!', description: `"${task.title}" ha sido añadida a tu lista.` });
-            setAddedTasks(prev => new Set(prev).add(task._id)); // Marcar como añadida
-        } else {
-            toast({ title: 'Error al añadir tarea', description: result.error, variant: 'destructive' });
-        }
-    };
-
-    return (
-        <div className="p-6 bg-white rounded-2xl shadow-lg">
-            <div className="flex items-center mb-4">
-                <Lightbulb className="h-8 w-8 text-yellow-400 mr-3" />
-                <h3 className="font-headline text-2xl text-gray-800">Sugerencias para ti</h3>
-            </div>
-
-            {isLoading && <p className="text-gray-500">Buscando sugerencias...</p>}
-            {error && <p className="text-red-500">Error: {error}</p>}
-
-            {!isLoading && !error && tasks.length > 0 && (
-                <ul className="space-y-3">
-                    {tasks.map((task) => (
-                        <li key={task._id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                            <div>
-                                <p className="font-semibold text-gray-800">{task.title}</p>
-                                <p className="text-sm text-gray-600">{task.description}</p>
-                            </div>
-                            <Button 
-                                size="sm"
-                                onClick={() => handleAddTask(task)}
-                                disabled={addedTasks.has(task._id)} // Deshabilitar si ya se añadió
-                                className="ml-4"
-                            >
-                                {addedTasks.has(task._id) ? <CheckCircle className="h-4 w-4 mr-2" /> : <PlusCircle className="h-4 w-4 mr-2" />}
-                                {addedTasks.has(task._id) ? 'Añadida' : 'Añadir'}
-                            </Button>
-                        </li>
-                    ))}
-                </ul>
-            )}
-            {/* ... otros estados ... */}
-        </div>
+  const latestEmotion = useMemo(() => {
+    if (!entries || entries.length === 0) return null;
+    const latest = entries.reduce((acc, cur) =>
+      new Date(cur.createdAt) > new Date(acc.createdAt) ? cur : acc
     );
+    return latest.mainEmotion;
+  }, [entries]);
+
+  useEffect(() => {
+    const fetchRecommendedTasks = async () => {
+      if (!latestEmotion) {
+        setTasks([]);
+        setIsLoading(false);
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const res = await fetch(`/api/recommended-tasks?emotion=${encodeURIComponent(latestEmotion)}`);
+        if (!res.ok) throw new Error('No se pudieron cargar las tareas recomendadas.');
+        const data: RecommendedTask[] = await res.json();
+        setTasks(Array.isArray(data) ? data : []);
+        setError(null);
+      } catch (e: any) {
+        setError(e?.message || 'Error inesperado cargando sugerencias.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchRecommendedTasks();
+  }, [latestEmotion]);
+
+  const handleAddTask = async (task: RecommendedTask) => {
+    if (!user) {
+      toast({
+        title: 'Debes iniciar sesión',
+        description: 'Inicia sesión para añadir tareas a tu lista.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setAddingId(task._id);
+      const payload = {
+        title: task.description,
+        description: task.description, // guardamos la descripción (que se muestra como “título” visual)
+        firebaseUid: user.uid,
+      };
+
+      const result = await addTaskAction(payload);
+
+      if (result?.success) {
+        toast({
+          title: '¡Tarea añadida!',
+          description: `"${task.title}" ha sido añadida a tu lista.`,
+        });
+        setAdded(prev => {
+          const s = new Set(prev);
+          s.add(task._id);
+          return s;
+        });
+      } else {
+        throw new Error(result?.error || 'No se pudo añadir la tarea.');
+      }
+    } catch (e: any) {
+      toast({
+        title: 'Error al añadir tarea',
+        description: e?.message || 'Ocurrió un error al añadir esta tarea.',
+        variant: 'destructive',
+      });
+    } finally {
+      setAddingId(null);
+    }
+  };
+
+  const visibleTasks = useMemo(
+    () => tasks.filter(t => !added.has(t._id)),
+    [tasks, added]
+  );
+
+  return (
+    <div className="p-6 bg-white rounded-2xl shadow-lg">
+      <div className="flex items-center mb-4">
+        <Lightbulb className="h-8 w-8 text-yellow-400 mr-3" />
+        <h3 className="font-headline text-2xl text-gray-800">Sugerencias para ti</h3>
+      </div>
+
+      {!latestEmotion && (
+        <p className="text-gray-500">Escribe una entrada reciente para obtener sugerencias.</p>
+      )}
+
+      {isLoading && <p className="text-gray-500">Buscando sugerencias…</p>}
+      {error && <p className="text-red-500">Error: {error}</p>}
+
+      {!isLoading && !error && latestEmotion && visibleTasks.length === 0 && (
+        <p className="text-gray-500 italic">
+          No hay más sugerencias por ahora. ¡Buen trabajo!
+        </p>
+      )}
+
+      {!isLoading && !error && visibleTasks.length > 0 && (
+        <ul className="space-y-3">
+          {visibleTasks.slice(0, 3).map((task) => { // <-- mostrar solo 3
+            const isAdding = addingId === task._id;
+
+            return (
+              <li
+                key={task._id}
+                className="p-4 bg-gray-50 rounded-lg border border-gray-100"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    {/* La DESCRIPCIÓN es la línea principal */}
+                    <p className="font-semibold text-gray-800 break-words">
+                      {task.description}
+                    </p>
+                    {/* El title original como subtítulo/metadata */}
+                    {task.title && (
+                      <p className="text-xs text-gray-500 mt-1 break-words">
+                        {task.title}
+                      </p>
+                    )}
+                  </div>
+
+                  <Button
+                    size="sm"
+                    className={cn('ml-4 shrink-0', isAdding && 'opacity-70')}
+                    onClick={() => handleAddTask(task)}
+                    disabled={isAdding}
+                  >
+                    {isAdding ? (
+                      <>
+                        <CheckCircle className="h-4 w-4 mr-2 animate-pulse" />
+                        Añadiendo…
+                      </>
+                    ) : (
+                      <>
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        Añadir
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
 };
 
 export default RecommendedTasks;
