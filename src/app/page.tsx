@@ -1,5 +1,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
+import Teacup from "@/images/landing_tea.png";
+import TeacupIcon from "@/images/teacup.png";
+import TeacupGif from "@/images/teaGifnbg.gif";
+import Community from "@/images/community.png";
+import LiquidChrome from './react-bits/LiquidChrome';
+import FeatureIconsExpander from './react-bits/FeatureIconsExpander';
+import CountUp from './react-bits/CountUp'
 import {
   HeartHandshake,
   KeyRound,
@@ -8,6 +15,8 @@ import {
   Stethoscope,
   Target,
   Users,
+  BookHeart,
+  Smile
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -21,21 +30,31 @@ export default function Home() {
       title: 'Evaluación Inicial',
       description: 'Completa un cuestionario para evaluar tus necesidades y tendencias.',
     },
-    {
-      icon: <HeartHandshake className="w-8 h-8 text-primary-foreground" />,
-      title: 'Coincidencia con IA',
-      description: 'Te conectamos con el psicólogo o centro más adecuado para ti.',
-    },
+    //{
+      //icon: <HeartHandshake className="w-8 h-8 text-primary-foreground" />,
+      //title: 'Coincidencia con IA',
+      //description: 'Te conectamos con el psicólogo o centro más adecuado para ti.',
+    //},
     {
       icon: <Target className="w-8 h-8 text-primary-foreground" />,
       title: 'Tareas Personalizadas',
       description: 'Recibe tareas sugeridas por IA para apoyar tu tratamiento y recuperación.',
     },
     {
-      icon: <Users className="w-8 h-8 text-primary-foreground" />,
-      title: 'Foro Anónimo',
-      description: 'Conéctate con otros, comparte experiencias y encuentra apoyo.',
+      icon: <BookHeart className="w-8 h-8 text-primary-foreground" />,
+      title: 'Diario Personal',
+      description: 'Escribe sobre tus pensamientos y sentimientos para reflexionar y crecer.',
     },
+    {
+      icon: <Smile className="w-8 h-8 text-primary-foreground" />,
+      title: 'Seguimiento a Estados de Ánimo',
+      description: 'Evalúa y registra tus estados de ánimo a lo largo del tiempo.',
+    },
+    //{
+      //icon: <Users className="w-8 h-8 text-primary-foreground" />,
+      //title: 'Foro Anónimo',
+      //description: 'Conéctate con otros, comparte experiencias y encuentra apoyo.',
+    //},
     {
       icon: <Leaf className="w-8 h-8 text-primary-foreground" />,
       title: 'Descubre Actividades',
@@ -56,22 +75,23 @@ export default function Home() {
     },
     {
       icon: <Users className="w-6 h-6 mr-2" />,
-      title: 'Registrarse como Paciente',
+      title: 'Regístrate como Paciente',
       href: '/assessment',
     },
-    {
-      icon: <KeyRound className="w-6 h-6 mr-2" />,
-      title: 'Paciente con Código de Invitación',
-      href: '/assessment',
-    },
-    {
-      icon: <HeartHandshake className="w-6 h-6 mr-2" />,
-      title: 'Un ser querido buscando ayuda',
-      href: '/assessment',
-    },
+    //{
+      //icon: <KeyRound className="w-6 h-6 mr-2" />,
+      //title: 'Paciente con Código de Invitación',
+      //href: '/assessment',
+    //},
+    //{
+      //icon: <HeartHandshake className="w-6 h-6 mr-2" />,
+      //title: 'Un ser querido buscando ayuda',
+      //href: '/assessment',
+    //},
   ];
 
   return (
+    
     <div className="flex flex-col min-h-screen">
       <header className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
         <Logo />
@@ -85,25 +105,67 @@ export default function Home() {
         </nav>
       </header>
       <main className="flex-grow">
-        <section className="py-20 md:py-32">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h1 className="text-4xl md:text-6xl font-bold font-headline tracking-tight">
-              Tu taza de serenidad en la recuperación.
-            </h1>
-            <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
-              SereniTea es un compañero compasivo para tu viaje hacia la
-              sanación de los trastornos alimenticios, conectándote con ayuda profesional y una comunidad de apoyo.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" asChild>
-                <Link href="/assessment">Comienza tu Evaluación</Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="#features">Aprender Más</Link>
-              </Button>
-            </div>
+            <section
+      className="relative overflow-hidden"
+      aria-labelledby="hero-title"
+    >
+      {/* Altura: hero alto en desktop, cómodo en móvil */}
+      <div className="min-h-[80vh] md:min-h-[85vh]">
+
+        {/* Fondo líquido absoluto */}
+        <LiquidChrome
+          className="absolute inset-0 -z-10"
+          baseColor={[0.12, 0.16, 0.18]}   // tono sereno gris-azulado
+          speed={0.25}                     // más calmado
+          amplitude={0.45}
+          frequencyX={3}
+          frequencyY={2}
+          interactive={true}
+        />
+
+        {/* Overlay para contraste de texto */}
+        <div className="absolute inset-0 -z-10 bg-black/30" />
+
+        {/* Contenido */}
+        <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-32 text-center">
+          <h1
+            id="hero-title"
+            className="text-white text-4xl md:text-6xl font-bold font-headline tracking-tight"
+          >
+            Tu taza de serenidad en la recuperación.
+          </h1>
+
+          <p className="mt-4 max-w-2xl mx-auto text-lg text-gray-100">
+            SereniTea es un compañero compasivo para tu viaje hacia la sanación de los
+            trastornos alimenticios, conectándote con ayuda profesional y una comunidad
+            de apoyo.
+          </p>
+
+          <div
+            className="mt-8 flex flex-col sm:flex-row justify-center gap-4"
+            role="group"
+            aria-label="Acciones principales"
+          >
+            <Button size="lg" asChild className="focus-visible:ring-2 focus-visible:ring-white/70">
+              <Link href="/assessment" aria-label="Comenzar evaluación inicial">
+                Comienza tu Evaluación
+              </Link>
+            </Button>
+
+            <Button
+              size="lg"
+              variant="outline"
+              asChild
+              className="focus-visible:ring-2 focus-visible:ring-white/70"
+            >
+              <Link href="#features" aria-label="Aprender más sobre SereniTea">
+                Aprender Más
+              </Link>
+            </Button>
           </div>
-        </section>
+        </div>
+      </div>
+    </section>
 
         <section
           id="features"
@@ -112,36 +174,62 @@ export default function Home() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h2 className="text-3xl md:text-4xl font-bold font-headline">
-                Un Camino hacia la Sanación, Juntos.
+                Un Camino hacia la Sanación, juntos.
               </h2>
               <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
                 Te proporcionamos las herramientas y el apoyo que necesitas en cada paso de tu recuperación.
               </p>
             </div>
-            <div className="mt-16 grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature) => (
-                <Card key={feature.title} className="text-center">
-                  <CardHeader>
-                    <div className="mx-auto bg-primary/80 text-primary-foreground rounded-full w-16 h-16 flex items-center justify-center">
-                      {feature.icon}
-                    </div>
-                    <CardTitle className="mt-4 font-headline">{feature.title}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">{feature.description}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <FeatureIconsExpander features={features} />
           </div>
         </section>
 
+        <section
+  id="users"
+  className="py-20 md:py-32 bg-green-50"
+>
+  <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center gap-12">
+    {/* Imagen (izquierda) */}
+    <div className="flex-1 flex justify-center">
+  <Image
+    src={Community}
+    alt="Comunidad SereniTea"
+    width={400}
+    height={400}
+    className="rounded-xl shadow-lg"
+  />
+</div>
+
+    {/* Texto y contador (derecha) */}
+    <div className="flex-1 text-center md:text-left">
+      <h2 className="text-2xl md:text-4xl font-bold font-headline text-gray-800">
+        Contamos con más de 
+      </h2>
+      <CountUp
+        from={0}
+        to={15}
+        separator=","
+        direction="up"
+        duration={2}
+        className="text-5xl md:text-6xl font-bold text-green-700 my-4"
+      />
+      <h2 className="text-2xl md:text-4xl font-bold font-headline text-gray-800">
+        usuarios encontrando su serenidad con nosotros.
+      </h2>
+      <p className="mt-6 text-lg text-gray-700">
+        ¿Qué esperas para ser parte de esta comunidad compasiva y transformadora?
+      </p>
+    </div>
+  </div>
+</section>
+
+        
         <section className="py-20 md:py-32">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-2 gap-16 items-center">
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold font-headline">
-                  ¿Listo para comenzar tu viaje?
+                  ¿Listo para comenzar tu sanación?
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
                   Elige el camino adecuado para ti. Estamos aquí para ayudarte a empezar, sin importar quién seas.
@@ -164,7 +252,7 @@ export default function Home() {
               </div>
               <div className="hidden md:block">
                 <Image
-                  src="https://picsum.photos/600/600"
+                  src={Teacup}
                   alt="Un entorno tranquilo y de apoyo"
                   data-ai-hint="entorno tranquilo apoyo"
                   width={600}
@@ -175,10 +263,13 @@ export default function Home() {
             </div>
           </div>
         </section>
+
+
       </main>
       <footer className="py-8 bg-secondary/50">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} SereniTea. Todos los derechos reservados.</p>
+          <p className="text-xs text-gray-500 mt-4"> SereniTea no sustituye la atención médica, psicológica o psiquiátrica profesional. La información y herramientas ofrecidas en esta aplicación tienen fines informativos, educativos y de acompañamiento emocional, y no deben considerarse como diagnóstico, tratamiento o terapia clínica.</p>
         </div>
       </footer>
     </div>

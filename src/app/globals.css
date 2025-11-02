@@ -82,3 +82,10 @@
     @apply bg-background text-foreground;
   }
 }
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1.25); }
+  50% { transform: scale(1.3); }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
