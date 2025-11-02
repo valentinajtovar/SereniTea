@@ -66,32 +66,6 @@ export default function RegisterPage() {
       });
 
       router.push('/assessment');
-    } catch (error) {
-      console.error("Redirection to assessment error:", error);
-      toast({ title: "Error", description: "No se pudo redirigir a la evaluación.", variant: "destructive" });
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(values),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error?.message || 'Something went wrong during registration.');
-      }
-
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-
-      toast({
-        title: "¡Registro exitoso!",
-        description: "Tu cuenta ha sido creada. Ahora serás redirigido.",
-      });
-
-      // Corregido: Redirigir al dashboard después del registro
-      router.push('/dashboard');
-
     } catch (error: any) {
       console.error("Registration error:", error);
       toast({ 
