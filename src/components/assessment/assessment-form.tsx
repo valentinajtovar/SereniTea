@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { EAT26_SHORT, likert4 } from '@/lib/assessment-questions';
 import type { AssessmentResult } from '@/types/assessment';
 import { auth, db } from '@/lib/firebase-client';
-import { doc, collection, addDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // shadcn/ui
@@ -15,15 +15,15 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 
-export function AssessmentForm() {
+export default function AssessmentForm() {
   const router = useRouter();
   const { toast } = useToast();
   const [userId, setUserId] = useState<string | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
-  // auth guard (client-side)
-  useMemo(() => {
+  // Auth guard (usar useEffect, no useMemo)
+  useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
       if (!u) {
         router.replace('/login');
@@ -32,8 +32,7 @@ export function AssessmentForm() {
       }
     });
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [router]);
 
   const totalScore = useMemo(
     () => EAT26_SHORT.reduce((acc, q) => acc + (answers[q.id] ?? 0), 0),
@@ -44,7 +43,8 @@ export function AssessmentForm() {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   };
 
-  const canSubmit = userId && EAT26_SHORT.every((q) => answers[q.id] !== undefined);
+  const canSubmit =
+    Boolean(userId) && EAT26_SHORT.every((q) => answers[q.id] !== undefined);
 
   const onSubmit = async () => {
     if (!userId) return;
@@ -58,7 +58,7 @@ export function AssessmentForm() {
         totalScore,
       };
 
-      // Guardar en /paciente/{uid}/assessments/{autoId} para mantener consistencia con tu colección "paciente"
+      // Guarda en /paciente/{uid}/assessments/{autoId}
       const subcol = collection(doc(db, 'paciente', userId), 'assessments');
       await addDoc(subcol, {
         ...payload,
@@ -100,7 +100,9 @@ export function AssessmentForm() {
           ))}
 
           <div className="flex items-center justify-between pt-2">
-            <div className="text-sm opacity-80">Puntaje total: <b>{totalScore}</b></div>
+            <div className="text-sm opacity-80">
+              Puntaje total: <b>{totalScore}</b>
+            </div>
             <Button onClick={onSubmit} disabled={!canSubmit || saving} className="min-w-32">
               {saving ? 'Guardando…' : 'Guardar'}
             </Button>
