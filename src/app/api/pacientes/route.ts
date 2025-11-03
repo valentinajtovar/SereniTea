@@ -1,3 +1,5 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { dbConnect } from '@/lib/db';
@@ -14,18 +16,20 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: { message: 'firebaseUid is required' } }, { status: 400 });
     }
 
-    // Usamos findOne para obtener un único paciente
+    console.log('[GET /api/pacientes] uid=', firebaseUid);
     const paciente = await Paciente.findOne({ firebaseUid });
 
-    // Si no se encuentra el paciente, devolvemos un 404
     if (!paciente) {
+      console.warn('[GET /api/pacientes] not-found uid=', firebaseUid);
       return NextResponse.json({ error: { message: 'Paciente no encontrado' } }, { status: 404 });
     }
 
-    // Devolvemos el objeto del paciente
     return NextResponse.json(paciente, { status: 200 });
-
   } catch (error: any) {
-    return NextResponse.json({ error: { message: 'Internal Server Error', details: error.message } }, { status: 500 });
+    console.error('[GET /api/pacientes] error:', error);
+    return NextResponse.json(
+      { error: { message: 'Internal Server Error', details: error.message } },
+      { status: 500 }
+    );
   }
 }
