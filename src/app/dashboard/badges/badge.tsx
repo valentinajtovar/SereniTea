@@ -2,7 +2,7 @@
 
 import MainHeader from "@/components/dashboard/main-header";
 import React, { useEffect, useState, useRef } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from '@/context/auth-context';
 // UI imports not needed here; inline styles are used for this view
 const badgeContainerStyle = {
     display: "grid",
