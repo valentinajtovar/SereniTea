@@ -57,15 +57,29 @@ export default function RegisterPage() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsRegisterLoading(true);
     try {
-      // Store user data in localStorage
-      localStorage.setItem('registrationData', JSON.stringify(values));
+      // 1. Call the backend API to create the user in Firebase Auth and MongoDB
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(values),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error.message || 'Error en el registro.');
+      }
+
+      // 2. Sign in the user on the client to establish a session
+      await signInWithEmailAndPassword(auth, values.email, values.password);
 
       toast({
-        title: "Datos guardados temporalmente",
+        title: "Cuenta creada exitosamente",
         description: "Ahora completa la evaluación para finalizar tu registro.",
       });
 
+      // 3. Redirect to the assessment page
       router.push('/assessment');
+      
     } catch (error: any) {
       console.error("Registration error:", error);
       toast({ 

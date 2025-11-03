@@ -4,8 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { EAT26_SHORT, likert4 } from '@/lib/assessment-questions';
 import type { AssessmentResult } from '@/types/assessment';
-import { auth, db } from '@/lib/firebase-client';
-import { doc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '@/lib/firebase-client';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // shadcn/ui
@@ -22,17 +21,19 @@ export default function AssessmentForm() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
-  // Auth guard (usar useEffect, no useMemo)
+  // Effect to ensure the user is authenticated
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (!u) {
-        router.replace('/login');
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
       } else {
-        setUserId(u.uid);
+        // If not authenticated, redirect to login
+        toast({ title: 'Acceso denegado', description: 'Debes iniciar sesión para continuar.', variant: 'destructive' });
+        router.replace('/login');
       }
     });
-    return () => unsub();
-  }, [router]);
+    return () => unsubscribe();
+  }, [router, toast]);
 
   const totalScore = useMemo(
     () => EAT26_SHORT.reduce((acc, q) => acc + (answers[q.id] ?? 0), 0),
@@ -43,14 +44,21 @@ export default function AssessmentForm() {
     setAnswers((prev) => ({ ...prev, [qid]: value }));
   };
 
-  const canSubmit =
-    Boolean(userId) && EAT26_SHORT.every((q) => answers[q.id] !== undefined);
+  const canSubmit = EAT26_SHORT.every((q) => answers[q.id] !== undefined);
 
   const onSubmit = async () => {
-    if (!userId) return;
+    const user = auth.currentUser;
+    if (!user || !userId) {
+      toast({ title: 'Error de autenticación', description: 'Tu sesión no es válida. Por favor, inicia sesión de nuevo.', variant: 'destructive' });
+      router.push('/login');
+      return;
+    }
+
     try {
       setSaving(true);
-      const payload: AssessmentResult = {
+      const idToken = await user.getIdToken();
+
+      const assessmentPayload: AssessmentResult = {
         userId,
         createdAt: Date.now(),
         instrument: 'EAT-26',
@@ -58,27 +66,40 @@ export default function AssessmentForm() {
         totalScore,
       };
 
-      // Guarda en /paciente/{uid}/assessments/{autoId}
-      const subcol = collection(doc(db, 'paciente', userId), 'assessments');
-      await addDoc(subcol, {
-        ...payload,
-        createdAt: serverTimestamp(),
+      const response = await fetch('/api/assessments', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify(assessmentPayload),
       });
 
-      toast({ title: 'Assessment guardado', description: 'Tus respuestas han sido registradas.' });
-      router.push('/dashboard'); // o una ruta de resultados
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error.message || 'No se pudo guardar la evaluación.');
+      }
+
+      toast({ title: 'Evaluación completada', description: 'Tus respuestas han sido guardadas.' });
+      router.push('/dashboard');
+
     } catch (err: any) {
-      toast({ title: 'Error', description: err?.message ?? 'No se pudo guardar.' });
+      toast({ title: 'Error al guardar', description: err.message, variant: 'destructive' });
     } finally {
       setSaving(false);
     }
   };
+  
+  if (!userId) {
+    // Render a loading state or nothing while checking auth
+    return <p>Cargando...</p>;
+  }
 
   return (
     <div className="mx-auto max-w-2xl p-4">
       <Card className="rounded-2xl shadow">
         <CardHeader>
-          <CardTitle>Assessment inicial (EAT-26 breve)</CardTitle>
+          <CardTitle>Evaluación Inicial (EAT-26 Breve)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {EAT26_SHORT.map((q) => (
@@ -104,7 +125,7 @@ export default function AssessmentForm() {
               Puntaje total: <b>{totalScore}</b>
             </div>
             <Button onClick={onSubmit} disabled={!canSubmit || saving} className="min-w-32">
-              {saving ? 'Guardando…' : 'Guardar'}
+              {saving ? 'Guardando…' : 'Finalizar y ver Dashboard'}
             </Button>
           </div>
         </CardContent>

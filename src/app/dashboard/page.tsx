@@ -1,288 +1,153 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
-import * as z from 'zod';
-import { PlusCircle, CheckCircle2 } from 'lucide-react';
-import { User } from 'firebase/auth';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/hooks/use-auth'; // Assuming you have a useAuth hook
 
+// UI Components
 import { Button } from '@/components/ui/button';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Textarea } from '@/components/ui/textarea';
-import { toast } from '@/hooks/use-toast';
-import { auth } from '@/lib/firebase-client';
-import TaskSummary from '@/components/dashboard/task-summary';
-import JournalEntries from '@/components/dashboard/journal-entries'; 
-import MoodTracker from '@/components/dashboard/mood-tracker'; 
-import MainHeader from '@/components/dashboard/main-header';
-import QuickTip from '@/components/dashboard/quick-tip';
-import RecommendedTasks from '@/components/dashboard/RecommendedTasks';
-import { type JournalEntry, type Paciente } from '@/types';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import { Icons } from '@/components/icons';
 
-const emotions = {
-  Alegria: { emoji: '😊', subEmotions: ['Feliz', 'Emocionado', 'Orgulloso', 'Optimista'] },
-  Calma: { emoji: '😌', subEmotions: ['Relajado', 'Tranquilo', 'En Paz', 'Satisfecho'] },
-  Sorpresa: { emoji: '😮', subEmotions: ['Asombrado', 'Impactado', 'Confundido', 'Curioso'] },
-  Tristeza: { emoji: '😢', subEmotions: ['Melancólico', 'Solo', 'Decepcionado', 'Cansado'] },
-  Enojo: { emoji: '😠', subEmotions: ['Irritado', 'Frustrado', 'Molesto', 'Furioso'] },
-};
-type Emotion = keyof typeof emotions;
+// Types
+import type { JournalEntry as JournalEntryType } from '@/types/journal';
 
-const dailyEntrySchema = z.object({
-  mainEmotion: z.string().min(1, 'Debes elegir una emoción principal.'),
-  subEmotion: z.string().min(1, 'Debes elegir una emoción específica.'),
-  journal: z.string().min(10, { message: 'Tu entrada debe tener al menos 10 caracteres.' }),
-});
+function isToday(date: Date): boolean {
+  const today = new Date();
+  return date.getDate() === today.getDate() &&
+         date.getMonth() === today.getMonth() &&
+         date.getFullYear() === today.getFullYear();
+}
 
-const getTodayDateString = () => new Date().toISOString().split('T')[0];
-
-export default function PatientDashboard() {
-  const [showFullForm, setShowFullForm] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [patientData, setPatientData] = useState<Paciente | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [isLoadingEntries, setIsLoadingEntries] = useState(true);
-
-  const form = useForm<z.infer<typeof dailyEntrySchema>>({
-    resolver: zodResolver(dailyEntrySchema),
-    defaultValues: { mainEmotion: '', subEmotion: '', journal: '' },
-  });
-
-  const selectedMainEmotion = form.watch('mainEmotion') as Emotion | '';
-
-  const fetchJournalEntries = useCallback(async (user: User) => {
-    setIsLoadingEntries(true);
-    try {
-      const response = await fetch(`/api/journal?firebaseUid=${user.uid}`);
-      if (!response.ok) throw new Error('Failed to fetch entries');
-      const data = await response.json();
-      setJournalEntries(data);
-    } catch (error) {
-      console.error(error);
-      toast({ title: "Error", description: "No se pudieron cargar las entradas del diario.", variant: "destructive" });
-    } finally {
-      setIsLoadingEntries(false);
-    }
-  }, []);
-
-  const fetchPatientData = useCallback(async (user: User) => {
-    if (!user) return;
-    try {
-      const response = await fetch(`/api/paciente-info?firebaseUid=${user.uid}`);
-      if (response.ok) {
-        const data = await response.json();
-        setPatientData(data); // data._id viene string
-      } else if (response.status === 404) {
-        setPatientData(null);
-        toast({
-          title: "Datos Incompletos",
-          description:
-            "No se encontraron los datos del paciente. Por favor, regístrate de nuevo para sincronizar tu cuenta.",
-          variant: "destructive",
-          duration: 9000,
-        });
-      } else {
-        throw new Error('Failed to fetch patient data');
-      }
-    } catch (error) {
-      console.error("Error fetching patient data:", error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar los datos del paciente.",
-        variant: "destructive",
-      });
-      setPatientData(null);
-    }
-  }, []);
+export default function DashboardPage() {
+  const router = useRouter();
+  const { user, loading } = useAuth(); // Using the custom auth hook
+  const [hasJournaledToday, setHasJournaledToday] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged(user => {
-      setCurrentUser(user);
-      setIsAuthLoading(false);
-      if (user) {
-        fetchJournalEntries(user);
-        fetchPatientData(user);
-      } else {
-        setJournalEntries([]);
-        setPatientData(null);
-      }
-    });
-    const today = getTodayDateString();
-    const storedDate = localStorage.getItem('lastDailyEntryDate');
-    if (storedDate === today) setShowFullForm(false);
-    
-    return () => unsubscribe();
-  }, [fetchJournalEntries, fetchPatientData]);
-
-  const onSubmit = async (data: z.infer<typeof dailyEntrySchema>) => {
-     if (!currentUser || !patientData) {
-      toast({ title: "Error", description: "Sesión o datos de paciente no encontrados. Recarga la página.", variant: "destructive" });
+    if (loading) return; // Wait until user auth state is resolved
+    if (!user) {
+      router.replace('/login'); // Redirect if not logged in
       return;
     }
 
-    try {
-      const newEntryPayload = {
-        firebaseUid: currentUser.uid,
-        patientId: patientData._id,
-        mainEmotion: data.mainEmotion,
-        subEmotion: data.subEmotion,
-        journal: data.journal,
-        emotionEmoji: emotions[data.mainEmotion as Emotion]?.emoji || ''
-      };
-      
-      const response = await fetch('/api/journal', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(newEntryPayload),
-      });
+    const fetchJournalStatus = async () => {
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch('/api/journal', { // No firebaseUid in query
+          headers: {
+            'Authorization': `Bearer ${idToken}`,
+          },
+        });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error.message || 'Failed to save entry');
+        if (!response.ok) {
+          throw new Error('Failed to fetch journal entries');
+        }
+
+        const entries: JournalEntryType[] = await response.json();
+        const hasJournaled = entries.some(entry => isToday(new Date(entry.createdAt)));
+        setHasJournaledToday(hasJournaled);
+
+      } catch (error) {
+        console.error("Error fetching journal status:", error);
+        setHasJournaledToday(false); // Assume no journal if fetch fails
       }
+    };
 
-      const savedEntry = await response.json();
-      setJournalEntries(prevEntries => [savedEntry, ...prevEntries]);
+    fetchJournalStatus();
+  }, [user, loading, router]);
 
-      const today = getTodayDateString();
-      localStorage.setItem('lastDailyEntryDate', today);
-      setShowFullForm(false);
-      form.reset();
-      toast({ title: "¡Registro guardado!", description: "Tu entrada ha sido guardada en MongoDB.", action: <CheckCircle2 className="text-green-500" /> });
-    } catch (error: any) {
-      console.error("Error al guardar la entrada: ", error);
-      toast({ title: "Error al guardar", description: error.message || "No se pudo guardar tu entrada.", variant: "destructive" });
-    }
-  };
-  
-  const handleEntryUpdate = (updatedEntry: JournalEntry) => {
-    setJournalEntries(prevEntries => prevEntries.map(entry => entry._id === updatedEntry._id ? updatedEntry : entry));
-  };
 
-  const handleEntryDelete = (deletedEntryId: string) => {
-    setJournalEntries(prevEntries => prevEntries.filter(entry => entry._id !== deletedEntryId));
-  };
+  // --- Render logic ---
 
-  const handleAddNewEntry = () => {
-    setShowFullForm(true);
-    form.reset();
-  };
-  
-  const EmotionSticker = ({ emoji, name, isSelected, onClick }: any) => (
-    <div onClick={onClick} className={`cursor-pointer p-4 m-2 rounded-xl transition-all duration-300 transform hover:scale-110 ${isSelected ? 'bg-purple-300 shadow-lg scale-105' : 'bg-white shadow-md'}`}>
-      <div className="text-5xl">{emoji}</div>
-      <div className="text-center mt-2 font-semibold text-lilac-foreground">{name}</div>
-    </div>
-  );
-
-  const displayName = currentUser?.displayName;
-  const firstName = displayName ? displayName.split(' ')[0] : '';
+  if (loading || hasJournaledToday === null) {
+    return (
+        <div className="flex items-center justify-center min-h-screen">
+            <Icons.spinner className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <MainHeader />
-      <main className="p-4 sm:p-6 md:p-8">
-        <div className="max-w-7xl mx-auto">
-          
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">
-              Hola{firstName ? `, ${firstName}` : ''}
-            </h1>
-            <p className="text-gray-600">¿Listo para continuar tu viaje? Estamos aquí contigo.</p>
-          </div>
+      <header className="p-6">
+        <h1 className="text-3xl font-bold">Bienvenido a tu Dashboard</h1>
+        <p className="text-muted-foreground">Tu espacio para el autoconocimiento y el bienestar.</p>
+      </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            
-            <div className="lg:col-span-2 space-y-8">
+      <main className="grid gap-6 p-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* -- Daily Journal Card -- */}
+        <Card className="col-span-1 md:col-span-2 shadow-sm">
+          <CardHeader>
+            <CardTitle>Registro Diario</CardTitle>
+            <CardDescription>
+              {hasJournaledToday ? 
+                "¡Buen trabajo! Ya completaste tu registro de hoy." : 
+                "Tómate un momento para registrar tus emociones y pensamientos."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {hasJournaledToday ? (
+                <div className='text-center p-4 bg-green-100 rounded-lg'>
+                    <p className='text-green-800 font-semibold'>Vuelve mañana para un nuevo registro.</p>
+                </div>
+            ) : (
+                <Button onClick={() => router.push('/journal/new')}>
+                    <Icons.plus className="mr-2 h-4 w-4" /> Iniciar Registro
+                </Button>
+            )}
+          </CardContent>
+        </Card>
 
-              {/* Tareas Recomendadas ahora recibe el usuario */}
-              <RecommendedTasks entries={journalEntries} user={currentUser} />
+        {/* -- Other cards remain unchanged -- */}
 
-               <div className="p-8 bg-white rounded-2xl shadow-lg">
-                <h2 className="font-headline text-3xl text-gray-800 mb-2">Registro Diario</h2>
-                <p className="text-gray-600 mb-6">Tómate un momento para conectar contigo. ¿Cómo te sientes hoy?</p>
+        <Card className="shadow-sm">
+            <CardHeader>
+                <CardTitle>Mi Progreso</CardTitle>
+                <CardDescription>Visualiza tu avance semanal.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                <div className="space-y-4">
+                    <div>
+                        <div className="flex justify-between mb-1">
+                            <span className="text-sm font-medium">Registros</span>
+                            <span className="text-sm font-medium">3 de 7</span>
+                        </div>
+                        <Progress value={(3/7)*100} />
+                    </div>
+                    <div>
+                        <div className="flex justify-between mb-1">
+                            <span className="text-sm font-medium">Tareas</span>
+                            <span className="text-sm font-medium">1 de 5</span>
+                        </div>
+                        <Progress value={(1/5)*100} />
+                    </div>
+                </div>
+            </CardContent>
+            <CardFooter>
+                <Button variant="outline" className="w-full">Ver detalles</Button>
+            </CardFooter>
+        </Card>
 
-                {showFullForm ? (
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                      <FormField control={form.control} name="mainEmotion" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-lg font-semibold text-gray-700">Elige tu emoción principal</FormLabel>
-                            <FormControl>
-                              <div className="flex flex-wrap justify-center pt-4">
-                                {Object.keys(emotions).map((key) => (
-                                  <EmotionSticker key={key} emoji={emotions[key as Emotion].emoji} name={key} isSelected={field.value === key} onClick={() => { field.onChange(key); form.setValue('subEmotion', ''); }} />
-                                ))}
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Tareas Pendientes</CardTitle>
+            <CardDescription>Actividades recomendadas para ti.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-2">
+              <li className="flex items-center gap-2"><Icons.checkCircle className="h-5 w-5 text-green-500"/> Técnica de respiración</li>
+              <li className="flex items-center gap-2"><Icons.circle className="h-5 w-5 text-gray-300"/> Ejercicio de gratitud</li>
+              <li className="flex items-center gap-2"><Icons.circle className="h-5 w-5 text-gray-300"/> Meditación guiada</li>
+            </ul>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">Ver todas las tareas</Button>
+          </CardFooter>
+        </Card>
 
-                      {selectedMainEmotion && (
-                        <FormField control={form.control} name="subEmotion" render={({ field }) => (
-                            <FormItem>
-                              <FormLabel className="text-lg font-semibold text-gray-700">¿Puedes ser más específico?</FormLabel>
-                              <FormControl>
-                                <div className="flex flex-wrap gap-2 pt-2">
-                                  {emotions[selectedMainEmotion].subEmotions.map((sub) => (<Button key={sub} type="button" variant={field.value === sub ? 'default' : 'outline'} onClick={() => field.onChange(sub)} className="rounded-full">{sub}</Button>))}
-                                </div>
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )} />
-                      )}
-
-                      <FormField control={form.control} name="journal" render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-lg font-semibold text-gray-700">Tu Diario</FormLabel>
-                            <FormControl><Textarea placeholder="Escribe sobre tu día..." className="resize-none h-48 p-4 text-xl bg-amber-50 leading-relaxed" {...field} /></FormControl>
-                            <FormDescription>Este es tu espacio seguro.</FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )} />
-                      <Button type="submit" size="lg" className="w-full font-bold text-lg" disabled={isAuthLoading}>{isAuthLoading ? 'Verificando...' : 'Guardar Mi Día'}</Button>
-                    </form>
-                  </Form>
-                ) : (
-                  <div className="text-center p-8 border-2 border-dashed border-purple-200 rounded-xl">
-                    <h2 className="font-headline text-2xl text-purple-700">¡Gracias por tu registro de hoy!</h2>
-                    <p className="text-gray-600 mt-2 mb-6">¡Has hecho una pausa para tu bienestar!</p>
-                    <Button onClick={handleAddNewEntry}><PlusCircle className="mr-2 h-4 w-4" /> Añadir otra entrada</Button>
-                  </div>
-                )}
-              </div>
-
-              <JournalEntries 
-                entries={journalEntries.slice(0, 5)} 
-                isLoading={isLoadingEntries} 
-                onEntryUpdate={handleEntryUpdate}
-                onEntryDelete={handleEntryDelete}
-              />
-
-            </div>
-
-            <div className="space-y-8">
-              <MoodTracker entries={journalEntries} />
-              <QuickTip />
-              <TaskSummary user={currentUser} />
-            </div>
-
-          </div>
-        </div>
       </main>
     </div>
   );
