@@ -79,19 +79,29 @@ export default function PatientDashboard() {
   const fetchPatientData = useCallback(async (user: User) => {
     if (!user) return;
     try {
-      const response = await fetch(`/api/pacientes?firebaseUid=${user.uid}`);
+      const response = await fetch(`/api/paciente-info?firebaseUid=${user.uid}`);
       if (response.ok) {
         const data = await response.json();
-        setPatientData(data);
+        setPatientData(data); // data._id viene string
       } else if (response.status === 404) {
-        setPatientData(null); 
-        toast({ title: "Datos Incompletos", description: "No se encontraron los datos del paciente. Por favor, regístrate de nuevo para sincronizar tu cuenta.", variant: "destructive", duration: 9000 });
+        setPatientData(null);
+        toast({
+          title: "Datos Incompletos",
+          description:
+            "No se encontraron los datos del paciente. Por favor, regístrate de nuevo para sincronizar tu cuenta.",
+          variant: "destructive",
+          duration: 9000,
+        });
       } else {
         throw new Error('Failed to fetch patient data');
       }
     } catch (error) {
       console.error("Error fetching patient data:", error);
-      toast({ title: "Error", description: "No se pudieron cargar los datos del paciente.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos del paciente.",
+        variant: "destructive",
+      });
       setPatientData(null);
     }
   }, []);
