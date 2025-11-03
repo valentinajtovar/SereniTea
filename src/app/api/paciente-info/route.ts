@@ -10,7 +10,6 @@ export async function GET(req: NextRequest) {
     await dbConnect();
 
     const { searchParams } = new URL(req.url);
-    // Acepta ?firebaseUid=... (nombre usado en el cliente) o ?uid=...
     const firebaseUid = searchParams.get('firebaseUid') || searchParams.get('uid');
 
     if (!firebaseUid) {
@@ -20,8 +19,10 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // En Mongo el campo es "uid"
-    const paciente = await Paciente.findOne({ uid: firebaseUid }).lean();
+    // Busca por ambos campos, por si tu data histórica usó `firebaseUid` en lugar de `uid`
+    const paciente = await Paciente.findOne({
+      $or: [{ uid: firebaseUid }, { firebaseUid }]
+    }).lean();
 
     if (!paciente) {
       return NextResponse.json(
@@ -30,13 +31,12 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Normaliza _id a string para el front
     const { _id, ...rest } = paciente as any;
     return NextResponse.json({ _id: String(_id), ...rest }, { status: 200 });
   } catch (error: any) {
     return NextResponse.json(
-        { error: { message: 'Internal Server Error', details: error.message } },
-        { status: 500 }
+      { error: { message: 'Internal Server Error', details: error.message } },
+      { status: 500 }
     );
   }
 }
