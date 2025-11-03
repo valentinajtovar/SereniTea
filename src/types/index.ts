@@ -40,7 +40,15 @@ export interface JournalEntry {
 }
 
 // --- Tipos para Paciente ---
-export interface Patient {
-    id: string;
-    nombre_completo: string;
+export interface Paciente {
+  _id: string;                // ObjectId serializado a string en la API
+  uid: string;                // mismo que firebaseUid
+  correo: string;
+  nombre: string;
+  apellido: string;
+  fechaNacimiento?: string | null;
+  usuario_anonimo?: string | null;
+  // Si luego necesitas las relaciones:
+  // tareas?: string[];
+  // journalEntries?: string[];
 }
