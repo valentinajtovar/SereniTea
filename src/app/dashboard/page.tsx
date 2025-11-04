@@ -126,16 +126,21 @@ export default function PatientDashboard() {
       setCurrentUser(user);
       setIsAuthLoading(false);
       if (user) {
+        const today = getTodayDateString();
+        const storedDate = localStorage.getItem(`lastDailyEntryDate_${user.uid}`);
+        if (storedDate === today) {
+          setShowFullForm(false);
+        } else {
+          setShowFullForm(true);
+        }
         fetchJournalEntries(user);
         fetchPatientData(user);
       } else {
         setJournalEntries([]);
         setPatientData(null);
+        setShowFullForm(true);
       }
     });
-    const today = getTodayDateString();
-    const storedDate = localStorage.getItem('lastDailyEntryDate');
-    if (storedDate === today) setShowFullForm(false);
     
     return () => unsubscribe();
   }, [fetchJournalEntries, fetchPatientData]);
@@ -174,7 +179,7 @@ export default function PatientDashboard() {
       setJournalEntries(prevEntries => [savedEntry, ...prevEntries]);
 
       const today = getTodayDateString();
-      localStorage.setItem('lastDailyEntryDate', today);
+      localStorage.setItem(`lastDailyEntryDate_${currentUser.uid}`, today);
       setShowFullForm(false);
       form.reset();
       toast({ title: "¡Registro guardado!", description: "Tu entrada ha sido guardada en MongoDB.", action: <CheckCircle2 className="text-green-500" /> });
@@ -286,6 +291,7 @@ export default function PatientDashboard() {
                 isLoading={isLoadingEntries} 
                 onEntryUpdate={handleEntryUpdate}
                 onEntryDelete={handleEntryDelete}
+                user={currentUser}
               />
 
             </div>

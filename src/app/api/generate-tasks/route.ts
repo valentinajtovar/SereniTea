@@ -1,3 +1,4 @@
+
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
@@ -19,26 +20,7 @@ function buildTaskPrompt(params: {
   previousTasks: string[];
 }) {
   const { mood, diaryEntry, treatmentPlan, previousTasks } = params;
-  return `Eres un asistente de TCC para TCA. Devuelve EXACTAMENTE un JSON array de 3 strings (sin texto extra).
-
-Datos del paciente:
-- Estado/Mood: ${mood}
-- Diario: ${diaryEntry}
-
-Contexto clínico (literatura / guías) para inspirar tareas:
-${treatmentPlan}
-
-No repitas ni parafrasees estas tareas ya existentes:
-${JSON.stringify(previousTasks ?? [])}
-
-Criterios de las 3 tareas:
-- Conductuales, pequeñas, realizables hoy o esta semana.
-- Específicas, medibles y con duración/criterio de término (p. ej., “10 min respiración 4-7-8”).
-- Relacionadas con TCA: regularidad alimentaria, autorregistro, exposición gradual, reestructuración cognitiva, afrontamiento, autocompasión.
-- Tono empático y neutro.
-- Español neutro.
-- Formato de salida: SOLO JSON array de strings.
-`;
+  return `Eres un asistente de TCC para TCA. Devuelve EXACTAMENTE un JSON array de 3 strings (sin texto extra).\n\nDatos del paciente:\n- Estado/Mood: ${mood}\n- Diario: ${diaryEntry}\n\nContexto clínico (literatura / guías) para inspirar tareas:\n${treatmentPlan}\n\nNo repitas ni parafrasees estas tareas ya existentes:\n${JSON.stringify(previousTasks ?? [])}\n\nCriterios de las 3 tareas:\n- Conductuales, pequeñas, realizables hoy o esta semana.\n- Específicas, medibles y con duración/criterio de término (p. ej., “10 min respiración 4-7-8”).\n- Relacionadas con TCA: regularidad alimentaria, autorregistro, exposición gradual, reestructuración cognitiva, afrontamiento, autocompasión.\n- Tono empático y neutro.\n- Español neutro.\n- Formato de salida: SOLO JSON array de strings.\n`;
 }
 
 function safeParseTasks(text: string): string[] {
@@ -74,6 +56,14 @@ export async function POST(req: Request) {
 
     if (!firebaseUid) {
       return NextResponse.json({ error: 'Falta firebaseUid' }, { status: 400 });
+    }
+    
+    const client = await clientPromise;
+    const db = client.db();
+
+    const patient = await db.collection('pacientes').findOne({ uid: firebaseUid });
+    if (!patient) {
+      return NextResponse.json({ error: 'Paciente no encontrado para asociar tareas.' }, { status: 404 });
     }
 
     // --- RAG (Vector Search sobre Mongo)
@@ -127,28 +117,29 @@ export async function POST(req: Request) {
     }
     if (!tasks.length) tasks = ruleBasedFallback(lastMood);
 
-    // --- Guardar en Mongo con el esquema que lee el front
-    const client = await clientPromise;
-    const db = client.db();
-    const col = db.collection('tareas');
+    // --- Guardar en Mongo con el esquema correcto
+    const tareasCollection = db.collection('tareas');
 
     const now = new Date();
     const due = new Date(now);
-    due.setDate(due.getDate() + 1);
+    due.setDate(due.getDate() + 1); // Vence mañana
 
     const docs = tasks.slice(0, 3).map((t) => ({
-      title: t.length > 90 ? t.slice(0, 87) + '…' : t,
-      description: t,
-      status: 'pendiente' as const,
-      dueDate: due,
-      firebaseUid,
-      assignedBy: 'IA Serenitea',
-      createdAt: now,
+      descripcion: t,
+      estado: 'pendiente' as const,
+      fechaDue: due,
+      paciente: patient._id, // Usar el ObjectId del paciente
+      asignadaPor: 'elegida por usuario',
+      fechaCreacion: now,
+      feedback: null,
+      aiFeedback: undefined,
     }));
 
-    await col.insertMany(docs);
+    if(docs.length > 0) {
+        await tareasCollection.insertMany(docs);
+    }
 
-    return NextResponse.json({ inserted: docs.length, tasks: docs }, { status: 200 });
+    return NextResponse.json({ inserted: docs.length }, { status: 200 });
   } catch (error) {
     console.error('ERROR /api/generate-tasks:', error);
     const msg = error instanceof Error ? error.message : 'Error interno';

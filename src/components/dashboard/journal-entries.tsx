@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { MoreHorizontal, Trash2, Edit, CheckCircle2 } from 'lucide-react';
+import { User } from 'firebase/auth';
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from '@/components/ui/button';
@@ -43,7 +44,7 @@ const formatDetailedDate = (dateString: string | Date) => {
 };
 
 
-const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete }: { entries: JournalEntry[], isLoading: boolean, onEntryUpdate: Function, onEntryDelete: Function }) => {
+const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete, user }: { entries: JournalEntry[], isLoading: boolean, onEntryUpdate: Function, onEntryDelete: Function, user: User | null }) => {
   const { toast } = useToast();
 
   const [isDeleteAlertOpen, setIsDeleteAlertOpen] = useState(false);
@@ -57,16 +58,29 @@ const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete }: { 
   };
 
   const handleConfirmDelete = async () => {
-    if (!selectedEntry) return;
+    if (!selectedEntry || !user) {
+        toast({ title: "Error", description: "Usuario no autenticado.", variant: "destructive" });
+        return;
+    };
 
     try {
-      const response = await fetch(`/api/journal?id=${selectedEntry._id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete entry');
-      
+      const token = await user.getIdToken();
+      const response = await fetch(`/api/journal?id=${selectedEntry._id}`, {
+          method: 'DELETE',
+          headers: {
+              'Authorization': `Bearer ${token}`
+          }
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Failed to delete entry');
+      }
+
       onEntryDelete(selectedEntry._id);
       toast({ title: "Entrada eliminada", description: "Tu entrada del diario ha sido borrada permanentemente." });
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo eliminar la entrada.", variant: "destructive" });
+      toast({ title: "Error", description: (error as Error).message || "No se pudo eliminar la entrada.", variant: "destructive" });
     }
     setIsDeleteAlertOpen(false);
     setSelectedEntry(null);
@@ -79,22 +93,32 @@ const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete }: { 
   };
 
   const handleConfirmEdit = async () => {
-    if (!selectedEntry || !editText.trim()) return;
+    if (!selectedEntry || !editText.trim() || !user) {
+        toast({ title: "Error", description: "Usuario no autenticado o texto vacío.", variant: "destructive" });
+        return;
+    };
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch(`/api/journal?id=${selectedEntry._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({ journal: editText }),
       });
 
-      if (!response.ok) throw new Error('Failed to update entry');
+      if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'Failed to update entry');
+      }
 
       const updatedEntry = await response.json();
       onEntryUpdate(updatedEntry);
       toast({ title: "Entrada actualizada", action: <CheckCircle2 className="text-green-500" /> });
     } catch (error) {
-        toast({ title: "Error", description: "No se pudo actualizar la entrada.", variant: "destructive" });
+        toast({ title: "Error", description: (error as Error).message || "No se pudo actualizar la entrada.", variant: "destructive" });
     }
     setIsEditDialogOpen(false);
     setSelectedEntry(null);
@@ -123,7 +147,7 @@ const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete }: { 
                         </p>
                         <p className="text-xs text-gray-500 mt-2">{formatDetailedDate(entry.createdAt)}</p>
                     </div>
-                    
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity ml-2 flex-shrink-0 h-8 w-8">
@@ -171,9 +195,9 @@ const JournalEntries = ({ entries, isLoading, onEntryUpdate, onEntryDelete }: { 
           <DialogHeader>
             <DialogTitle>Editar Entrada del Diario</DialogTitle>
           </DialogHeader>
-          <Textarea 
-            value={editText} 
-            onChange={(e) => setEditText(e.target.value)} 
+          <Textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
             className="min-h-[200px] my-4"
             placeholder='Escribe aquí tu entrada...'
           />

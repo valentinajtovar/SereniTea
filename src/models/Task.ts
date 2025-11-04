@@ -37,4 +37,4 @@ const TaskSchema = new Schema<ITask>({
 
 TaskSchema.index({ paciente: 1, createdAt: -1 });
 
-export const Task = models.Task || model<ITask>("Task", TaskSchema);
+export const Task = models.Task || model<ITask>("Task", TaskSchema, "tareas");

@@ -1,6 +1,8 @@
 
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import { dbConnect } from '@/lib/db';
+import { Paciente } from '@/models/Paciente';
+import { Task } from '@/models/Task';
 
 /**
  * GET /api/all-tasks
@@ -16,19 +18,38 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'El ID de usuario (firebaseUid) es obligatorio.' }, { status: 400 });
     }
 
-    const client = await clientPromise;
-    const db = client.db();
-    const collection = db.collection('tareas');
+    await dbConnect();
 
-    const tasks = await collection
-      .find({ firebaseUid: firebaseUid })
-      .sort({ dueDate: 1 })
-      .toArray();
+    // Find the patient by firebaseUid to get their _id
+    const patient = await Paciente.findOne({ uid: firebaseUid }).lean();
 
-    return NextResponse.json(tasks, { status: 200 });
+    if (!patient) {
+        return NextResponse.json({ error: 'Paciente no encontrado.' }, { status: 404 });
+    }
 
-  } catch (error) {
+    const tasks = await Task.find({ paciente: patient._id })
+      .sort({ fechaCreacion: -1 })
+      .lean();
+
+    // The frontend expects a certain structure, let's adapt the response
+    const formattedTasks = tasks.map(task => ({
+      _id: task._id.toString(),
+      description: task.descripcion,
+      status: task.estado,
+      dueDate: task.fechaDue ? task.fechaDue.toISOString() : new Date().toISOString(),
+      assignedBy: task.asignadaPor,
+      feedback: task.feedback || null,
+      aiFeedback: task.aiFeedback,
+      // The original component expects title and firebaseUid, let's add them
+      title: task.descripcion, // Or some other logic for title
+      firebaseUid: firebaseUid, 
+    }));
+
+
+    return NextResponse.json(formattedTasks, { status: 200 });
+
+  } catch (error: any) {
     console.error('Error al obtener todas las tareas:', error);
-    return NextResponse.json({ error: 'Error interno del servidor al obtener las tareas.' }, { status: 500 });
+    return NextResponse.json({ error: 'Error interno del servidor al obtener las tareas.', details: error.message }, { status: 500 });
   }
 }

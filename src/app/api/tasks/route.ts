@@ -1,35 +1,100 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { dbConnect } from '@/lib/db';
+import { Paciente } from '@/models/Paciente';
+import { Task } from '@/models/Task';
+import { admin } from '@/lib/firebase-admin';
+import { z } from 'zod';
 
-import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+// Zod schemas for validation
+const taskSchema = z.object({
+  description: z.string(),
+  isCompleted: z.boolean().default(false), // Note: This is from the frontend, but not in our DB model
+});
 
-/**
- * GET /api/tasks
- * Obtiene las tareas pendientes de un usuario específico desde la colección 'tareas' en MongoDB.
- * Se requiere el parámetro de consulta 'firebaseUid'.
- */
-export async function GET(request: Request) {
+const aiTasksSchema = z.object({
+  tasks: z.array(taskSchema),
+});
+
+// Helper to get UID from Firebase token
+async function getUidFromToken(req: NextRequest): Promise<string | null> {
+    const authToken = req.headers.get('authorization')?.split('Bearer ')[1];
+    if (!authToken) return null;
+    try {
+        const decodedToken = await admin.auth().verifyIdToken(authToken);
+        return decodedToken.uid;
+    } catch (error) {
+        console.error("Token verification failed:", error);
+        return null;
+    }
+}
+
+// GET handler to fetch tasks for a user
+export async function GET(req: NextRequest) {
+  const uid = await getUidFromToken(req);
+  if (!uid) {
+    return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url);
-    const firebaseUid = searchParams.get('firebaseUid');
-
-    if (!firebaseUid) {
-      return NextResponse.json({ error: 'El ID de usuario (firebaseUid) es obligatorio.' }, { status: 400 });
+    await dbConnect();
+    const patient = await Paciente.findOne({ uid }).select('_id');
+    if (!patient) {
+      return NextResponse.json({ error: { message: 'Patient not found' } }, { status: 404 });
     }
 
-    const client = await clientPromise;
-    const db = client.db();
-    const collection = db.collection('tareas');
-
-    // Filtrar por estado 'pendiente'
-    const tasks = await collection
-      .find({ firebaseUid: firebaseUid, status: 'pendiente' })
-      .sort({ dueDate: 1 }) // Ordenar por fecha de vencimiento ascendente
-      .toArray();
-
+    const tasks = await Task.find({ paciente: patient._id }).sort({ fechaCreacion: -1 });
+    
     return NextResponse.json(tasks, { status: 200 });
 
-  } catch (error) {
-    console.error('Error al obtener las tareas:', error);
-    return NextResponse.json({ error: 'Error interno del servidor al obtener las tareas.' }, { status: 500 });
+  } catch (error: any) {
+    console.error("Error in /api/tasks GET:", error);
+    return NextResponse.json({ error: { message: 'Internal Server Error', details: error.message } }, { status: 500 });
+  }
+}
+
+
+// POST handler to create new tasks
+export async function POST(req: NextRequest) {
+  const uid = await getUidFromToken(req);
+  if (!uid) {
+    return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
+  }
+
+  try {
+    await dbConnect();
+    const body = await req.json();
+    const parsedData = aiTasksSchema.safeParse(body);
+
+    if (!parsedData.success) {
+      return NextResponse.json({ error: { message: "Validation failed", details: parsedData.error.flatten() } }, { status: 400 });
+    }
+
+    const patient = await Paciente.findOne({ uid });
+    if (!patient) {
+      return NextResponse.json({ error: { message: 'Patient not found' } }, { status: 404 });
+    }
+
+    const tasksToCreate = parsedData.data.tasks.map(task => ({
+        descripcion: task.description, 
+        paciente: patient._id
+    }));
+
+    if (tasksToCreate.length === 0) {
+        return NextResponse.json({ error: { message: 'No tasks to create' }}, { status: 400 });
+    }
+
+    const newTasks = await Task.insertMany(tasksToCreate);
+    const newTaskIds = newTasks.map(task => task._id);
+
+    await Paciente.updateOne({ _id: patient._id }, { $push: { tareas: { $each: newTaskIds } } });
+
+    return NextResponse.json(newTasks, { status: 201 });
+
+  } catch (error: any) {
+    console.error("Error in /api/tasks POST:", error);
+    if (error.name === 'ValidationError') {
+        return NextResponse.json({ error: { message: 'Task validation failed', details: error.errors } }, { status: 400 });
+    }
+    return NextResponse.json({ error: { message: 'Internal Server Error', details: error.message } }, { status: 500 });
   }
 }

@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { type JournalEntry } from '@/types';
 import { Lightbulb, PlusCircle, CheckCircle } from 'lucide-react';
 import { User } from 'firebase/auth';
-import { addTaskAction } from '@/app/actions';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
@@ -28,7 +27,6 @@ const RecommendedTasks = ({ entries, user }: Props) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Ocultar localmente las ya añadidas
   const [added, setAdded] = useState<Set<string>>(new Set());
   const [addingId, setAddingId] = useState<string | null>(null);
 
@@ -75,18 +73,24 @@ const RecommendedTasks = ({ entries, user }: Props) => {
 
     try {
       setAddingId(task._id);
+      const token = await user.getIdToken();
       const payload = {
-        title: task.description,
-        description: task.description, // guardamos la descripción (que se muestra como “título” visual)
-        firebaseUid: user.uid,
+        tasks: [{ description: task.description, isCompleted: false }]
       };
 
-      const result = await addTaskAction(payload);
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
 
-      if (result?.success) {
+      if (response.ok) {
         toast({
           title: '¡Tarea añadida!',
-          description: `"${task.title}" ha sido añadida a tu lista.`,
+          description: `"${task.description}" ha sido añadida a tu lista.`,
         });
         setAdded(prev => {
           const s = new Set(prev);
@@ -94,7 +98,8 @@ const RecommendedTasks = ({ entries, user }: Props) => {
           return s;
         });
       } else {
-        throw new Error(result?.error || 'No se pudo añadir la tarea.');
+        const errorData = await response.json();
+        throw new Error(errorData.error?.message || 'No se pudo añadir la tarea.');
       }
     } catch (e: any) {
       toast({
@@ -144,11 +149,9 @@ const RecommendedTasks = ({ entries, user }: Props) => {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    {/* La DESCRIPCIÓN es la línea principal */}
                     <p className="font-semibold text-gray-800 break-words">
                       {task.description}
                     </p>
-                    {/* El title original como subtítulo/metadata */}
                     {task.title && (
                       <p className="text-xs text-gray-500 mt-1 break-words">
                         {task.title}
