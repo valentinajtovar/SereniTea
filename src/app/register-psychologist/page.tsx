@@ -10,35 +10,28 @@ import { FileUp, Info, Loader2, CheckCircle } from 'lucide-react';
 import { Logo } from '@/components/shared/logo';
 import { Button } from '@/components/ui/button';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
 } from '@/components/ui/card';
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { registerPsychologistAction } from '@/app/actions';
 
+// ---------------- Schema ----------------
 const formSchema = z
   .object({
-    fullName: z.string().min(3, 'El nombre completo es requerido.'),
-    email: z.string().email('Por favor, introduce un correo electrónico válido.'),
+    fullName: z.string().min(3, 'El nombre completo es requerido.').trim(),
+    email: z.string().email('Por favor, introduce un correo electrónico válido.').trim(),
     password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres.'),
     confirmPassword: z.string(),
-    specialization: z.string().min(3, 'La especialización es requerida.'),
-    bio: z.string().min(10, 'La biografía debe tener al menos 10 caracteres.'),
-    certificate: z.any().refine((files) => files?.length === 1, 'El certificado es requerido.'),
+    specialization: z.string().min(3, 'La especialización es requerida.').trim(),
+    bio: z.string().min(10, 'La biografía debe tener al menos 10 caracteres.').trim(),
+    certificate: z
+      .any()
+      .refine((files) => !!files && files.length === 1, 'El certificado es requerido.'),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Las contraseñas no coinciden.',
@@ -47,6 +40,7 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>;
 
+// --------------- Page -------------------
 export default function RegisterPsychologistPage() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,49 +61,89 @@ export default function RegisterPsychologistPage() {
 
   async function onSubmit(data: FormData) {
     setIsSubmitting(true);
-    const result = await registerPsychologistAction({
-        fullName: data.fullName,
-        email: data.email,
-        specialization: data.specialization,
-        bio: data.bio
-    });
 
-    setIsSubmitting(false);
+    // 1) Parsear especializaciones a arreglo
+    const specializations = data.specialization
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-    if (result.error) {
+    // 2) Metadatos del archivo (NO subimos binario aún)
+    const file: File | undefined = data.certificate?.[0];
+    const license = file
+      ? {
+          fileName: file.name,
+          mimeType: file.type || 'application/octet-stream',
+          size: file.size,
+        }
+      : undefined;
+
+    // 3) Construir payload
+    const payload = {
+      fullName: data.fullName,
+      email: data.email,
+      password: data.password, // el endpoint hará bcrypt
+      specializations,
+      bio: data.bio,
+      license,                 // metadatos opcionales
+    };
+
+    try {
+      const res = await fetch('/api/psychologists', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+
+      if (!res.ok) {
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: json?.error || 'Error registrando psicólogo.',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      setIsSubmitted(true);
+    } catch (e) {
       toast({
         variant: 'destructive',
-        title: 'Error',
-        description: result.error,
+        title: 'Error de red',
+        description: 'No se pudo conectar con el servidor.',
       });
-    } else {
-      setIsSubmitted(true);
+    } finally {
+      setIsSubmitting(false);
     }
   }
 
   if (isSubmitted) {
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-secondary/50 p-4">
-            <div className="mb-8 text-center">
-                <Logo />
-            </div>
-            <Card className="w-full max-w-2xl text-center">
-                <CardHeader>
-                    <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-                    <CardTitle className="font-headline text-2xl mt-4">
-                        ¡Solicitud Enviada!
-                    </CardTitle>
-                    <CardDescription>
-                        Hemos recibido tu información. Nuestro equipo la revisará y recibirás una notificación por correo electrónico en un plazo de 3 a 5 días hábiles una vez que tu cuenta sea aprobada.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button asChild>
-                        <Link href="/">Volver al Inicio</Link>
-                    </Button>
-                </CardContent>
-            </Card>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-secondary/50 p-4">
+        <div className="mb-8 text-center">
+          <Logo />
         </div>
+        <Card className="w-full max-w-2xl text-center">
+          <CardHeader>
+            <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+            <CardTitle className="font-headline text-2xl mt-4">
+              ¡Solicitud Enviada!
+            </CardTitle>
+            <CardDescription>
+              Hemos recibido tu información. Nuestro equipo la revisará y recibirás una
+              notificación por correo electrónico en un plazo de 3 a 5 días hábiles una
+              vez que tu cuenta sea aprobada.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/">Volver al Inicio</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -124,8 +158,8 @@ export default function RegisterPsychologistPage() {
             Registro para Psicólogos y Centros de Salud
           </CardTitle>
           <CardDescription>
-            Únete a nuestra red de profesionales. Completa el formulario para
-            comenzar el proceso de verificación.
+            Únete a nuestra red de profesionales. Completa el formulario para comenzar
+            el proceso de verificación.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -160,7 +194,7 @@ export default function RegisterPsychologistPage() {
                 />
               </div>
 
-               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="password"
@@ -205,6 +239,7 @@ export default function RegisterPsychologistPage() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="bio"
@@ -222,6 +257,7 @@ export default function RegisterPsychologistPage() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="certificate"
@@ -254,31 +290,32 @@ export default function RegisterPsychologistPage() {
                         </label>
                       </div>
                     </FormControl>
-                     <FormMessage />
+                    <FormMessage />
                   </FormItem>
                 )}
-                />
+              />
 
               <Alert>
                 <Info className="h-4 w-4" />
                 <AlertTitle>Proceso de Revisión</AlertTitle>
                 <AlertDescription>
-                  Después de enviar, tu solicitud será revisada manualmente por
-                  nuestro equipo. Recibirás una notificación por correo electrónico
-                  en un plazo de 3 a 5 días hábiles.
+                  Después de enviar, tu solicitud será revisada manualmente por nuestro
+                  equipo. Recibirás una notificación por correo electrónico en un plazo
+                  de 3 a 5 días hábiles.
                 </AlertDescription>
               </Alert>
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                 {isSubmitting ? (
-                    <>
+                {isSubmitting ? (
+                  <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Enviando Solicitud...
-                    </>
+                  </>
                 ) : (
-                    'Enviar Solicitud de Registro'
+                  'Enviar Solicitud de Registro'
                 )}
               </Button>
+
               <div className="mt-4 text-center text-sm">
                 ¿Ya tienes una cuenta?{' '}
                 <Link href="/login" className="underline">
