@@ -55,27 +55,34 @@ const AllJournalEntries = () => {
 
   useEffect(() => {
     const fetchJournalEntries = async () => {
-      setIsLoading(true);
-      const user = auth.currentUser;
+        setIsLoading(true);
+        const user = auth.currentUser;
 
-      if (!user) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(`/api/journal?firebaseUid=${user.uid}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch entries');
+        if (!user) {
+            setIsLoading(false);
+            return;
         }
-        const data = await response.json();
-        setEntries(data);
-      } catch (error) {
-        console.error("Error fetching journal entries: ", error);
-        toast({ title: "Error", description: "No se pudieron cargar las entradas del diario.", variant: "destructive" });
-      } finally {
-        setIsLoading(false);
-      }
+
+        try {
+            const token = await user.getIdToken();
+            const response = await fetch(`/api/journal`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch entries');
+            }
+
+            const data = await response.json();
+            setEntries(data);
+        } catch (error) {
+            console.error("Error fetching journal entries: ", error);
+            toast({ title: "Error", description: "No se pudieron cargar las entradas del diario.", variant: "destructive" });
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     fetchJournalEntries();
@@ -88,15 +95,23 @@ const AllJournalEntries = () => {
 
   const handleConfirmDelete = async () => {
     if (!selectedEntry) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
     try {
-      const response = await fetch(`/api/journal?id=${selectedEntry._id}`, { method: 'DELETE' });
-      if (!response.ok) throw new Error('Failed to delete entry');
-      
-      setEntries(prevEntries => prevEntries.filter(entry => entry._id !== selectedEntry._id));
-      toast({ title: "Entrada eliminada", description: "Tu entrada del diario ha sido borrada permanentemente." });
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/journal?id=${selectedEntry._id}`, { 
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+        });
+        if (!response.ok) throw new Error('Failed to delete entry');
+        
+        setEntries(prevEntries => prevEntries.filter(entry => entry._id !== selectedEntry._id));
+        toast({ title: "Entrada eliminada", description: "Tu entrada del diario ha sido borrada permanentemente." });
     } catch (error) {
-      toast({ title: "Error", description: "No se pudo eliminar la entrada.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo eliminar la entrada.", variant: "destructive" });
     }
     setIsDeleteAlertOpen(false);
     setSelectedEntry(null);
@@ -110,19 +125,25 @@ const AllJournalEntries = () => {
 
   const handleConfirmEdit = async () => {
     if (!selectedEntry || !editText.trim()) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
     try {
-      const response = await fetch(`/api/journal?id=${selectedEntry._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ journal: editText }),
-      });
+        const token = await user.getIdToken();
+        const response = await fetch(`/api/journal?id=${selectedEntry._id}`, {
+            method: 'PUT',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify({ journal: editText }),
+        });
 
-      if (!response.ok) throw new Error('Failed to update entry');
+        if (!response.ok) throw new Error('Failed to update entry');
 
-      const updatedEntry = await response.json();
-      setEntries(prevEntries => prevEntries.map(entry => entry._id === updatedEntry._id ? updatedEntry : entry));
-      toast({ title: "Entrada actualizada", action: <CheckCircle2 className="text-green-500" /> });
+        const updatedEntry = await response.json();
+        setEntries(prevEntries => prevEntries.map(entry => entry._id === updatedEntry._id ? updatedEntry : entry));
+        toast({ title: "Entrada actualizada", action: <CheckCircle2 className="text-green-500" /> });
     } catch (error) {
         toast({ title: "Error", description: "No se pudo actualizar la entrada.", variant: "destructive" });
     }
