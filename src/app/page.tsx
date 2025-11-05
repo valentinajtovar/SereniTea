@@ -1,12 +1,11 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import Teacup from "@/images/landing_tea.png";
-import TeacupIcon from "@/images/teacup.png";
-import TeacupGif from "@/images/teaGifnbg.gif";
 import Community from "@/images/community.png";
 import LiquidChrome from './react-bits/LiquidChrome';
 import FeatureIconsExpander from './react-bits/FeatureIconsExpander';
-import CountUp from './react-bits/CountUp'
+import SplitText from './react-bits/SplitText'
+import RotatingText from './react-bits/RotatingText';
 import {
   HeartHandshake,
   KeyRound,
@@ -174,7 +173,7 @@ export default function Home() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <h2 className="text-3xl md:text-4xl font-bold font-headline">
-                Un Camino hacia la Sanación, juntos.
+                Un Camino hacia la sanación, juntos.
               </h2>
               <p className="mt-4 max-w-2xl mx-auto text-lg text-muted-foreground">
                 Te proporcionamos las herramientas y el apoyo que necesitas en cada paso de tu recuperación.
@@ -203,21 +202,26 @@ export default function Home() {
     {/* Texto y contador (derecha) */}
     <div className="flex-1 text-center md:text-left">
       <h2 className="text-2xl md:text-4xl font-bold font-headline text-gray-800">
-        Contamos con más de 
+        Contamos con una 
       </h2>
-      <CountUp
-        from={0}
-        to={15}
-        separator=","
-        direction="up"
-        duration={2}
-        className="text-5xl md:text-6xl font-bold text-green-700 my-4"
+      <SplitText
+        text="grandiosa comunidad"
+        className="text-4xl font-bold text-center text-green-700"
+        delay={100}
+        duration={0.6}
+        ease="power3.out"
+        splitType="chars"
+        from={{ opacity: 0, y: 40 }}
+        to={{ opacity: 1, y: 0 }}
+        threshold={0.1}
+        rootMargin="-100px"
+        textAlign="center"
       />
       <h2 className="text-2xl md:text-4xl font-bold font-headline text-gray-800">
-        usuarios encontrando su serenidad con nosotros.
+        que cada día encuentra su serenidad con nosotros.
       </h2>
       <p className="mt-6 text-lg text-gray-700">
-        ¿Qué esperas para ser parte de esta comunidad compasiva y transformadora?
+        ¿Qué esperas para ser parte de esta familia compasiva y transformadora?
       </p>
     </div>
   </div>
@@ -229,8 +233,21 @@ export default function Home() {
             <div className="grid md:grid-cols-2 gap-16 items-center">
               <div>
                 <h2 className="text-3xl md:text-4xl font-bold font-headline">
-                  ¿Listo para comenzar tu sanación?
+                  ¿List@ para comenzar tu
                 </h2>
+                <RotatingText
+                    texts={['sanación?', 'bienestar?', 'aventura?', 'crecimiento?']}
+                    mainClassName="text-3xl  text-green-700 md:text-4xl font-bold font-headline px-2 sm:px-2 md:px-3 text-black overflow-hidden py-0.5 sm:py-1 md:py-2 justify-center rounded-lg"
+                    staggerFrom={"last"}
+                    initial={{ y: "100%" }}
+                    animate={{ y: 0 }}
+                    exit={{ y: "-120%" }}
+                    staggerDuration={0.05}
+                    splitLevelClassName="overflow-hidden pb-0.5 sm:pb-1 md:pb-1"
+                    transition={{ type: "spring", damping: 30, stiffness: 400 }}
+                    rotationInterval={4000}
+                  />
+                
                 <p className="mt-4 text-lg text-muted-foreground">
                   Elige el camino adecuado para ti. Estamos aquí para ayudarte a empezar, sin importar quién seas.
                 </p>
