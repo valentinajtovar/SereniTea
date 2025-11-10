@@ -121,9 +121,6 @@ export default function AssessmentForm() {
           ))}
 
           <div className="flex items-center justify-between pt-2">
-            <div className="text-sm opacity-80">
-              Puntaje total: <b>{totalScore}</b>
-            </div>
             <Button onClick={onSubmit} disabled={!canSubmit || saving} className="min-w-32">
               {saving ? 'Guardando…' : 'Finalizar y ver Dashboard'}
             </Button>
