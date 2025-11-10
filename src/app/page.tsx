@@ -75,7 +75,7 @@ export default function Home() {
     {
       icon: <Users className="w-6 h-6 mr-2" />,
       title: 'Regístrate como Paciente',
-      href: '/assessment',
+      href: '/register',
     },
     //{
       //icon: <KeyRound className="w-6 h-6 mr-2" />,
@@ -99,7 +99,7 @@ export default function Home() {
             <Link href="/login">Iniciar Sesión</Link>
           </Button>
           <Button asChild>
-            <Link href="/assessment">Comenzar</Link>
+            <Link href="/register">Comenzar</Link>
           </Button>
         </nav>
       </header>
@@ -146,7 +146,7 @@ export default function Home() {
             aria-label="Acciones principales"
           >
             <Button size="lg" asChild className="focus-visible:ring-2 focus-visible:ring-white/70">
-              <Link href="/assessment" aria-label="Comenzar evaluación inicial">
+              <Link href="/register" aria-label="Comenzar evaluación inicial">
                 Comienza tu Evaluación
               </Link>
             </Button>
