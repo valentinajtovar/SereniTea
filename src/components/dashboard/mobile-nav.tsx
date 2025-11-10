@@ -66,6 +66,16 @@ export function MobileNav() {
             >
               Tareas
             </Link>
+            <Link
+              href="/dashboard/badges"
+              className={cn(
+                'text-sm font-medium transition-colors hover:text-primary',
+                pathname === '/dashboard/badges' ? 'text-foreground' : 'text-foreground/60'
+              )}
+              onClick={() => setOpen(false)}
+            >
+              Logros
+            </Link>
           </div>
         </div>
       </SheetContent>
