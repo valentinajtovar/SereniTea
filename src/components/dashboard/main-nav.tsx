@@ -51,6 +51,15 @@ export function MainNav() {
       >
         Logros
       </Link>
+      <Link
+        href="/dashboard/discover"
+        className={cn(
+          'text-sm font-medium transition-colors hover:text-primary',
+          pathname === '/dashboard/discover' ? 'text-foreground' : 'text-foreground/60'
+        )}
+      >
+        Descubre
+      </Link>
     </nav>
   );
 }

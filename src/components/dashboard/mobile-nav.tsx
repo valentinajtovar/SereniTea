@@ -76,6 +76,16 @@ export function MobileNav() {
             >
               Logros
             </Link>
+            <Link
+              href="/dashboard/discover"
+              className={cn(
+                'text-sm font-medium transition-colors hover:text-primary',
+                pathname === '/dashboard/discover' ? 'text-foreground' : 'text-foreground/60'
+              )}
+              onClick={() => setOpen(false)}
+            >
+              Descubre
+            </Link>
           </div>
         </div>
       </SheetContent>

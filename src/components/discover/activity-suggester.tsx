@@ -1,196 +1,248 @@
-"use client";
+'use client';
 
-import { useState, useTransition } from "react";
-import { useForm } from "react-hook-form";
-import * as z from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import * as React from 'react';
+import { useRef, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, Plus } from 'lucide-react';
 
-import type { SuggestCreativeActivitiesOutput } from "@/ai/flows/suggest-creative-activities";
-import { suggestActivitiesAction } from "@/app/actions";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, MapPin, Palette, Sparkles, PlusCircle } from "lucide-react";
-import Image from "next/image";
+type Msg = { role: 'user' | 'assistant'; content: string };
+type Slots = { mood?: string; city?: string; prefs?: string[] };
 
-const formSchema = z.object({
-  mood: z.string().min(1, "Por favor, selecciona un estado de ánimo."),
-  location: z.string().min(2, "Por favor, introduce una ubicación."),
-});
+/* === Actividad genérica inmediata para usuarios fuera de las ciudades === */
+const GENERIC_ACTIVITY = {
+  id: 'generic-relax',
+  title: 'Rutina personal de calma (en cualquier ciudad)',
+  city: 'Cualquier ciudad',
+  when: 'cuando puedas',
+  description:
+    'Tómate 10–15 minutos para respirar (técnica 4-7-8), escribir 5 líneas sobre cómo te sientes y dar una caminata corta en un lugar tranquilo. Es una propuesta simple y efectiva para reconectar contigo, sin importar dónde estés.',
+  where: 'Tu lugar favorito cerca de casa',
+  tags: ['genérica', 'respiración', 'journaling', 'caminata', 'autocuidado'],
+};
 
-type FormData = z.infer<typeof formSchema>;
-
-export function ActivitySuggester() {
+export default function ActivityChatbot() {
   const { toast } = useToast();
-  const [isPending, startTransition] = useTransition();
-  const [suggestions, setSuggestions] = useState<SuggestCreativeActivitiesOutput | null>(null);
+  const { user } = useAuth();
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      mood: "Estresado",
-      location: "Madrid, España",
+  const [messages, setMessages] = useState<Msg[]>([
+    {
+      role: 'assistant',
+      content:
+        '`¡Hola! 👋 Soy Sereni. Este es un espacio seguro y sin juicios. Cuéntame cómo te sientes y qué te provoca, yo te propongo planes cerca de ti 💚',
     },
-  });
+  ]);
+  const [state, setState] = useState<Slots>({});
+  const [loading, setLoading] = useState(false);
+  const [items, setItems] = useState<any[]>([]);
+  const [askFor, setAskFor] = useState<'mood' | 'city' | 'prefs' | null>(null);
+  const [options, setOptions] = useState<string[]>([]);
 
-  async function onSubmit(data: FormData) {
-    startTransition(async () => {
-      const result = await suggestActivitiesAction(data.mood, data.location);
-      if (result.error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: result.error,
-        });
-        setSuggestions(null);
-      } else {
-        setSuggestions(result as SuggestCreativeActivitiesOutput);
+  // --- Evitar doble llamada y duplicados de mensaje ---
+  const didInit = useRef(false);
+
+  // para descartar respuestas idénticas consecutivas (p. ej. doble render)
+  function appendAssistantOnce(reply: string) {
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (last?.role === 'assistant' && last.content.trim() === reply.trim()) {
+        return prev; // ya está
       }
+      return [...prev, { role: 'assistant', content: reply }];
     });
   }
 
-  const handleAddTask = (activity: string) => {
-    // In a real app, this would update a global state or call an API
-    toast({
-      title: "Tarea Añadida",
-      description: `"${activity}" se ha añadido a tus tareas diarias.`,
-    });
+  async function callChat(payload: any) {
+    setLoading(true);
+    try {
+      const r = await fetch('/api/discover/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error || 'Fallo chat');
+
+      appendAssistantOnce(j.reply);
+      setState(j.state || {});
+      setItems(j.items || []);
+      setAskFor(j.askFor ?? null);
+      setOptions(j.options ?? []);
+    } catch (e: any) {
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
   }
+
+  React.useEffect(() => {
+    if (didInit.current) return;
+    didInit.current = true;
+    // primera llamada: no pasamos ningún input del usuario
+    void callChat({ messages: [], state: {} });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const choose = async (val: string) => {
+    const next = [...messages, { role: 'user', content: val } as Msg];
+    setMessages(next);
+
+    const newState = { ...state };
+    if (askFor === 'mood') newState.mood = val;
+    if (askFor === 'city') newState.city = val;
+    if (askFor === 'prefs')
+      newState.prefs = [...new Set([...(state.prefs || []), val])];
+
+    await callChat({ messages: next, state: newState });
+  };
+
+  // “Otro” en ciudad → mostrar de inmediato la actividad genérica local
+  const chooseCityOther = async () => {
+    const next = [...messages, { role: 'user', content: 'Otro' } as Msg];
+    setMessages(next);
+
+    // 1) Reflejar estado en UI al instante
+    setState((prev) => ({ ...prev, city: '— genérica —' }));
+    appendAssistantOnce(
+      'Como no estás en nuestras ciudades disponibles, te propongo esta actividad base pensada para cualquier ciudad 💫'
+    );
+    setItems([GENERIC_ACTIVITY]);
+    // invita a elegir preferencia para refinar luego
+    setAskFor('prefs');
+    setOptions(['artística', 'naturaleza', 'movimiento', 'aprendizaje', 'relajación']);
+
+    // 2) En segundo plano, notifica al backend (no bloquea la UI)
+    void callChat({ messages: next, state, cityFallback: true });
+  };
+
+  const addToTasks = async (it: any) => {
+    if (!user) {
+      toast({
+        title: 'Inicia sesión',
+        description: 'Necesitas iniciar sesión para añadir tareas.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const res = await fetch('/api/discover/add-task', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        firebaseUid: user.uid,
+        title: it.title,
+        description: `${it.title} — ${it.where ?? it.city} — ${
+          it.when ?? 'próximamente'
+        }`,
+      }),
+    });
+    if (!res.ok) {
+      toast({
+        title: 'Error',
+        description: 'No se pudo añadir la tarea.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    toast({ title: 'Añadido a tus tareas', description: it.title });
+  };
+
+  const OptionsBar = () =>
+    askFor ? (
+      <div className="mt-3 space-y-2">
+        <div className="flex flex-wrap gap-2">
+          {options.map((opt) => (
+            <Button key={opt} size="sm" variant="outline" onClick={() => choose(opt)}>
+              {opt}
+            </Button>
+          ))}
+
+          {/* “Otro” solo para ciudad */}
+          {askFor === 'city' && (
+            <Button size="sm" variant="secondary" onClick={chooseCityOther}>
+              Otro
+            </Button>
+          )}
+        </div>
+      </div>
+    ) : null;
 
   return (
-    <div>
-      <Card className="max-w-2xl mx-auto">
+    <div className="space-y-6">
+      <Card>
         <CardHeader>
-          <CardTitle className="font-headline">Encuentra tu Chispa</CardTitle>
+          <CardTitle>Descubre actividades seleccionadas especialmente para ti</CardTitle>
         </CardHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="mood"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Estado de Ánimo Actual</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="¿Cómo te sientes?" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="Feliz">Feliz</SelectItem>
-                        <SelectItem value="Triste">Triste</SelectItem>
-                        <SelectItem value="Estresado">Estresado</SelectItem>
-                        <SelectItem value="Aburrido">Aburrido</SelectItem>
-                        <SelectItem value="Creativo">Creativo</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="location"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Tu Ubicación</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Ej: tu ciudad" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <Button type="submit" className="w-full" disabled={isPending}>
-                {isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
-                )}
-                Obtener Sugerencias
-              </Button>
-            </CardContent>
-          </form>
-        </Form>
+        <CardContent>
+          <div className="space-y-3 max-h-[340px] overflow-y-auto p-2 border rounded-md bg-muted/20">
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`flex ${
+                  m.role === 'assistant' ? 'justify-start' : 'justify-end'
+                }`}
+              >
+                <div
+                  className={`px-3 py-2 rounded-xl text-sm ${
+                    m.role === 'assistant'
+                      ? 'bg-white'
+                      : 'bg-primary text-primary-foreground'
+                  }`}
+                >
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="text-xs text-muted-foreground flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" /> pensando…
+              </div>
+            )}
+          </div>
+
+          <OptionsBar />
+
+        </CardContent>
       </Card>
 
-      {isPending && (
-         <div className="text-center p-8">
-            <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
-            <p className="mt-2 text-muted-foreground">Buscando inspiración...</p>
-         </div>
-      )}
-
-      {suggestions && (
-        <div className="mt-12 grid md:grid-cols-2 gap-8">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-headline">
-                <Palette className="w-5 h-5 text-primary-foreground" />
-                Actividades Creativas
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-3 text-muted-foreground">
-                {suggestions.activitySuggestions.map((activity, i) => (
-                  <li key={i} className="flex items-center justify-between">
-                    <span>{activity}</span>
-                    <Button variant="ghost" size="sm" onClick={() => handleAddTask(activity)}>
-                        <PlusCircle className="w-4 h-4 mr-2" />
-                        Añadir
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-headline">
-                <MapPin className="w-5 h-5 text-primary-foreground" />
-                Recomendaciones Locales
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
-                     <Image
-                        src="https://picsum.photos/400/200"
-                        alt="Mapa del área local"
-                        data-ai-hint="mapa local"
-                        fill
-                        style={{ objectFit: 'cover' }}
-                    />
+      {/* Resultados */}
+      {items.length > 0 && (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {items.map((it) => (
+            <Card key={it.id}>
+              <CardHeader>
+                <CardTitle className="text-base">{it.title}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="text-sm text-muted-foreground">
+                  {it.city} • {it.when ?? 'próximamente'}
                 </div>
-              <ul className="space-y-3 list-disc list-inside text-muted-foreground">
-                {suggestions.localRecommendations.map((place, i) => (
-                  <li key={i}>{place}</li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                <p className="text-sm">{it.description}</p>
+                {it.where && (
+                  <div className="text-sm">
+                    <span className="font-medium">Lugar:</span> {it.where}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1">
+                  {(it.tags ?? []).map((t: string) => (
+                    <Badge key={t} variant="secondary" className="text-[10px]">
+                      {t}
+                    </Badge>
+                  ))}
+                </div>
+                <Button size="sm" className="mt-2" onClick={() => addToTasks(it)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Añadir a mis tareas
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
   );
 }
+
+// (opcional) export default también:

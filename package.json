@@ -12,7 +12,8 @@
     "typecheck": "tsc --noEmit",
     "rag:index": "tsx scripts/index-pg.ts",
     "make:chunks": "tsx scripts/make-chunks.ts",
-    "embed:mongo": "tsx scripts/embed-and-upsert-mongo.ts"
+    "embed:mongo": "tsx scripts/embed-and-upsert-mongo.ts",
+    "seed:activities": "node scripts/seed-activities.js"
   },
   "dependencies": {
     "@genkit-ai/googleai": "^1.14.1",
