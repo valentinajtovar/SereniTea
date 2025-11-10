@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
-
+import { Home } from 'lucide-react';
 import { auth } from '@/lib/firebase-client';
 import { Button } from '@/components/ui/button';
 import {
@@ -115,6 +115,19 @@ export default function RegisterPage() {
           <p className="px-8 text-center text-sm text-muted-foreground">
             ¿Ya tienes una cuenta? <Link href="/login" className="underline underline-offset-4 hover:text-primary">Inicia sesión</Link>
           </p>
+          <div className="px-8">
+            <Button
+              asChild
+              variant="secondary"
+              className="w-full gap-2"
+              aria-label="Volver a la página principal"
+            >
+              <Link href="/">
+                <Home className="h-4 w-4" />
+                Volver a la página principal
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
     </div>
