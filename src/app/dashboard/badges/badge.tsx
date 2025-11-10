@@ -1,8 +1,25 @@
 'use client';
-
 import MainHeader from "@/components/dashboard/main-header";
 import React, { useEffect, useState, useRef } from "react";
-import { useAuth } from '@/context/auth-context';
+import { auth } from "@/lib/firebase-client";
+import { toast } from "@/hooks/use-toast";
+import type { JournalEntry } from "@/types";
+import img5 from '@/images/serenitea/5.jpeg';
+import img10 from '@/images/serenitea/10.jpeg';
+import img25 from '@/images/serenitea/25.jpeg';
+import img50 from '@/images/serenitea/50.jpeg';
+import img100 from '@/images/serenitea/100.jpeg';
+import img500 from '@/images/serenitea/500.jpeg';
+
+const badgeImages: Record<number, string> = {
+  5: img5.src,
+  10: img10.src,
+  25: img25.src,
+  50: img50.src,
+  100: img100.src,
+  500: img500.src,
+};
+
 // UI imports not needed here; inline styles are used for this view
 const badgeContainerStyle = {
     display: "grid",
@@ -115,10 +132,11 @@ function BadgeCard({ spec, icon, unlocked }: { spec: BadgeSpec; icon: string; un
 
 /* Main page component */
 export default function BadgePage() {
-    const authCtx: any = useAuth();
+    const [entriesCount, setEntriesCount] = useState(0);
+    const [loadingEntries, setLoadingEntries] = useState(true);
 
     // fallback when useAuth provides nothing
-    const entriesCount: number = authCtx?.user?.entriesCount ?? 0;
+    
     // local state for icons (data URLs)
     const [icons, setIcons] = useState<Record<string, string>>(() => {
         const initial: Record<string, string> = {};
@@ -130,6 +148,51 @@ export default function BadgePage() {
         }
         return initial;
     });
+
+        useEffect(() => {
+      const unsubscribe = auth.onAuthStateChanged(async (user) => {
+        if (!user) {
+          setEntriesCount(0);
+          setLoadingEntries(false);
+          return;
+        }
+
+        try {
+          setLoadingEntries(true);
+          const token = await user.getIdToken();
+
+          const response = await fetch("/api/journal", {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error?.message || "No se pudieron cargar tus entradas.");
+          }
+
+          const data: JournalEntry[] = await response.json();
+
+          // 👇 Aquí obtenemos la cantidad de entradas para logros
+          setEntriesCount(data.length);
+        } catch (err: any) {
+          console.error("Error cargando entradas en logros:", err);
+          toast({
+            title: "Error",
+            description: err.message || "No se pudieron cargar tus entradas del diario.",
+            variant: "destructive",
+          });
+          setEntriesCount(0);
+        } finally {
+          setLoadingEntries(false);
+        }
+      });
+
+      return () => unsubscribe();
+    }, []);
+
+
 
     useEffect(() => {
         // ensure missing keys (first render on client) are filled
@@ -188,12 +251,16 @@ export default function BadgePage() {
                 <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
                     {BADGES.map((b) => {
                         const unlocked = (entriesCount >= b.requirement);
-                        const icon = icons[b.id] ?? createDefaultSvgDataUrl(String(b.requirement), b.defaultColor);
+                        const iconSrc = unlocked
+  ? badgeImages[b.requirement]
+  : icons[b.id] ?? createDefaultSvgDataUrl(String(b.requirement), b.defaultColor);
 
-                        return <BadgeCard key={b.id} spec={b} icon={icon} unlocked={unlocked} />;
+                        
+
+                        return <BadgeCard key={b.id} spec={b} icon={iconSrc} unlocked={unlocked} />;
                     })}
                 </div>
             </section>
         </div>
     );
-}
+}  
