@@ -187,7 +187,7 @@ export async function POST(req: Request) {
     if (!state.mood || !MOODS_NORM.includes(norm(state.mood))) {
       return NextResponse.json(
         {
-          reply: 'Para empezar, ¿cómo te sientes hoy? No hay respuestas correctas: solo elige la que más se acerque 💭',
+          reply: 'Para empezar, ¿qué sientes hoy? No hay respuestas correctas: solo elige la que más se acerque 💭',
           state,
           items: [],
           askFor: 'mood',
