@@ -1,59 +1,43 @@
-import 'server-only';
+// src/lib/firebase-admin.ts
+import type { ServiceAccount } from 'firebase-admin';
 import * as admin from 'firebase-admin';
 
-type ServiceAccountLike = {
-  project_id: string;
-  client_email: string;
-  private_key: string;
-};
+// Evita re-inicializar en dev/hot reload
+const globalAny = global as any;
 
-/**
- * Carga credenciales a partir de:
- * 1) FIREBASE_SERVICE_ACCOUNT_JSON (recomendado en Vercel)
- * 2) o variables sueltas (fallback): FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY
- */
-function loadCreds(): { projectId: string; clientEmail: string; privateKey: string } {
-  const fromJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-  if (fromJson) {
-    try {
-      const parsed = JSON.parse(fromJson) as ServiceAccountLike;
-      if (!parsed.project_id || !parsed.client_email || !parsed.private_key) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON incompleto');
-      }
-      return {
-        projectId: parsed.project_id,
-        clientEmail: parsed.client_email,
-        // En Vercel los \n llegan escapados: normalizamos
-        privateKey: parsed.private_key.replace(/\\n/g, '\n'),
-      };
-    } catch (e) {
-      throw new Error(`No se pudo parsear FIREBASE_SERVICE_ACCOUNT_JSON: ${(e as Error).message}`);
-    }
-  }
-
-  // Fallback por si prefieres 3 vars sueltas
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = (process.env.FIREBASE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
-
-  if (!projectId || !clientEmail || !privateKey) {
-    throw new Error(
-      'Faltan credenciales de Firebase Admin. Define FIREBASE_SERVICE_ACCOUNT_JSON o las 3: FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY'
-    );
-  }
-  return { projectId, clientEmail, privateKey };
+function required(name: string) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env: ${name}`);
+  return v;
 }
 
-if (!admin.apps.length) {
-  const { projectId, clientEmail, privateKey } = loadCreds();
+function parseServiceAccount(): ServiceAccount {
+  // Viene como string JSON en Vercel
+  const raw = required('FIREBASE_SERVICE_ACCOUNT_JSON');
 
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    }),
+  // Si ya viene como objeto en local, intenta parsear
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    // Si llega “mal escapado”, es preferible explotar explícitamente
+    throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON');
+  }
+
+  // Asegura los saltos de línea en llave privada
+  if (typeof parsed.private_key === 'string') {
+    parsed.private_key = parsed.private_key.replace(/\\n/g, '\n');
+  }
+  return parsed;
+}
+
+if (!globalAny.__adminApp) {
+  const creds = parseServiceAccount();
+  globalAny.__adminApp = admin.initializeApp({
+    credential: admin.credential.cert(creds),
   });
 }
 
-export { admin };
+export const adminApp = globalAny.__adminApp as admin.app.App;
+export const adminAuth = admin.auth(adminApp);
+export const adminDb = admin.firestore(adminApp);
