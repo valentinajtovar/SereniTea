@@ -43,7 +43,7 @@ type ApiTask = {
   dueDate: string; // ISO
   firebaseUid: string;
   assignedBy?: string; // 'IA Serenitea'
-  aiFeedback?: 'liked' | 'disliked';
+  aiFeedback?: 'liked' | 'disliked' | null;
   feedback?: TaskFeedback | null;
   createdAt?: string;
 };
@@ -387,22 +387,17 @@ const AllTasks = () => {
         </div>
 
         <div className="pl-9 mt-2">
-          {isAiTask && task.status === 'pendiente' && task.aiFeedback === undefined && (
-            <div className="flex items-center gap-2 mt-2 animate-in fade-in-50">
-              <p className="text-sm text-purple-700">¿Te gusta esta sugerencia?</p>
-              <Button size="sm" variant="outline" className="h-8" onClick={() => handleAiTaskFeedback(task._id, 'liked')}>
-                <ThumbsUp className="h-4 w-4 text-green-500" />
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8"
-                onClick={() => handleAiTaskFeedback(task._id, 'disliked')}
-              >
-                <ThumbsDown className="h-4 w-4 text-red-500" />
-              </Button>
-            </div>
-          )}
+        {isAiTask && task.status === 'pendiente' && task.aiFeedback == null && (
+          <div className="flex items-center gap-2 mt-2 animate-in fade-in-50">
+            <p className="text-sm text-purple-700">¿Te gusta esta sugerencia?</p>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => handleAiTaskFeedback(task._id, 'liked')}>
+              <ThumbsUp className="h-4 w-4 text-green-500" />
+            </Button>
+            <Button size="sm" variant="outline" className="h-8" onClick={() => handleAiTaskFeedback(task._id, 'disliked')}>
+              <ThumbsDown className="h-4 w-4 text-red-500" />
+            </Button>
+          </div>
+        )}
 
           {feedbackTaskId === task._id ? (
             <FeedbackForm

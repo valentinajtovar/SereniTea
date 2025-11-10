@@ -32,7 +32,7 @@ export function UserNav() {
     try {
       await signOut(auth);
       toast({ description: "Has cerrado sesión exitosamente." });
-      router.push('/login');
+      router.push('/');
     } catch (error) {
       console.error('Error al cerrar sesión: ', error);
       toast({ 

@@ -31,19 +31,24 @@ export async function GET(request: Request) {
       .sort({ fechaCreacion: -1 })
       .lean();
 
-    // The frontend expects a certain structure, let's adapt the response
-    const formattedTasks = tasks.map(task => ({
-      _id: task._id.toString(),
-      description: task.descripcion,
-      status: task.estado,
-      dueDate: task.fechaDue ? task.fechaDue.toISOString() : new Date().toISOString(),
-      assignedBy: task.asignadaPor,
-      feedback: task.feedback || null,
-      aiFeedback: task.aiFeedback,
-      // The original component expects title and firebaseUid, let's add them
-      title: task.descripcion, // Or some other logic for title
-      firebaseUid: firebaseUid, 
-    }));
+    const formattedTasks = tasks.map(task => {
+      const base = {
+        _id: task._id.toString(),
+        description: task.descripcion,
+        status: task.estado,
+        dueDate: task.fechaDue ? task.fechaDue.toISOString() : new Date().toISOString(),
+        assignedBy: task.asignadaPor,
+        feedback: task.feedback || null,
+        title: task.descripcion,
+        firebaseUid: firebaseUid,
+      } as any;
+    
+      if (task.aiFeedback != null) {
+        base.aiFeedback = task.aiFeedback; // sólo la incluimos si no es null
+      }
+    
+      return base;
+    });
 
 
     return NextResponse.json(formattedTasks, { status: 200 });

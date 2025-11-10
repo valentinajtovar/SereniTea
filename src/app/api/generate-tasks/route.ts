@@ -122,26 +122,29 @@ export async function POST(req: Request) {
 
     const now = new Date();
     const due = new Date(now);
-    due.setDate(due.getDate() + 1); // Vence mañana
+    due.setDate(due.getDate() + 1); // vence mañana
 
     const docs = tasks.slice(0, 3).map((t) => ({
       descripcion: t,
       estado: 'pendiente' as const,
       fechaDue: due,
-      paciente: patient._id, // Usar el ObjectId del paciente
-      asignadaPor: 'elegida por usuario',
       fechaCreacion: now,
+      paciente: patient._id,
+
+      asignadaPor: 'IA Serenitea',
+      source: 'AI',
+
       feedback: null,
-      aiFeedback: undefined,
+      aiFeedback: null,
     }));
 
-    if(docs.length > 0) {
-        await tareasCollection.insertMany(docs);
+    if (docs.length > 0) {
+      await tareasCollection.insertMany(docs);
     }
 
     return NextResponse.json({ inserted: docs.length }, { status: 200 });
   } catch (error) {
-    console.error('ERROR /api/generate-tasks:', error);
+    console.error('ERROR /api/recommended-tasks:', error);
     const msg = error instanceof Error ? error.message : 'Error interno';
     return NextResponse.json({ error: msg }, { status: 500 });
   }

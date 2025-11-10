@@ -78,7 +78,7 @@ export async function PATCH(
       if (status !== 'pendiente' && status !== 'completada') {
         return bad('status inválido.');
       }
-      $set.status = status;
+      $set.estado = status;
       // opcional: marca fecha de completado
       $set.completedAt = status === 'completada' ? new Date() : null;
     }

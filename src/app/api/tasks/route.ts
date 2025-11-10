@@ -74,9 +74,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: { message: 'Patient not found' } }, { status: 404 });
     }
 
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     const tasksToCreate = parsedData.data.tasks.map(task => ({
-        descripcion: task.description, 
-        paciente: patient._id
+      descripcion: task.description,
+      estado: 'pendiente',
+      fechaCreacion: new Date(),
+      fechaDue: tomorrow,
+      paciente: patient._id,
+    
+      // ✅ MARCAS DE USUARIO
+      asignadaPor: 'Paciente',
+      source: 'user',
+    
+      feedback: null,
+      aiFeedback: null,
     }));
 
     if (tasksToCreate.length === 0) {
