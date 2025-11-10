@@ -36,8 +36,11 @@ const CrisisModal = ({ isOpen, onClose }: CrisisModalProps) => {
         <div className="flex flex-col space-y-3">
             <Button variant="outline" className="bg-green-100 border-green-300 text-green-800 hover:bg-green-200">
                 <MessageSquare className="mr-2 h-4 w-4" />
-                Contactar a tu Psicólogo
+                Habla con tu grupo de apoyo, no lo olvides
             </Button>
+            <div className="mt-4 text-center">
+            <p className="text-sm text-gray-500">Si esto no sirve, </p>
+        </div>
             <a href="tel:988">
               <Button variant="outline" className="w-full border-gray-300">
                   <Phone className="mr-2 h-4 w-4" />
